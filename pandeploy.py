@@ -1,6 +1,6 @@
 __all__ = ['clean', 'deploy', 'domain']
 
-import os
+import os, sys
 
 from fabric.state import env
 from fabric.api import local, run, put
