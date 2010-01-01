@@ -2,6 +2,7 @@ import sys, os
 import optparse
 
 from fabric.api import local
+from fabric.contrib.files import sed
 
 from optparse import OptionParser
 parser = OptionParser()
@@ -14,6 +15,16 @@ parser.add_option("-d", "--domain",
 
 options, args = parser.parse_args()
 
+root_wsgi = """
+import os, sys
+
+sys.path.append("/domains/pantechnoco.com/libs/")
+os.environ['DJANGO_SETTINGS_MODULE'] = 'pantechnoco_site.settings'
+
+from django.core.handlers import wsgi
+application = wsgi.WSGIHandler()
+"""
+
 def main(argv):
     project_name = options.project_name or argv.pop(1)
     domain = options.domain or argv.pop(1)
@@ -24,7 +35,19 @@ def main(argv):
     local("echo from pandeploy import \\* > %(project_name)s/fabfile.py" % locals())
     local("echo domain: %(domain)s >> %(project_name)s/project.yaml" % locals())
     local("echo project_library: %(project_name)s >> %(project_name)s/project.yaml" % locals())
-    local("echo hosts: %(domain)s >> %(project_name)s/project.yaml" % locals())
+    local("echo hosts: [\"%(domain)s\"] >> %(project_name)s/project.yaml" % locals())
+
+    open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi)
+
+    settings_path = os.path.join(project_name, project_name, "settings.py")
+    settings = open(settings_path).read()
+    settings = settings.replace(
+        "DATABASE_ENGINE = ''",
+        "DATABASE_ENGINE = 'sqlite3'")
+    settings = settings.replace(
+        "DATABASE_NAME = ''",
+        "DATABASE_NAME = '/domains/%(domain)s/db.sqlite3'" % locals())
+    open(settings_path, 'w').write(settings)
 
     return 0
 
