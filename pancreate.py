@@ -18,8 +18,8 @@ options, args = parser.parse_args()
 root_wsgi = """
 import os, sys
 
-sys.path.append("/domains/pantechnoco.com/libs/")
-os.environ['DJANGO_SETTINGS_MODULE'] = 'pantechnoco_site.settings'
+sys.path.append("/domains/%(domain)s/libs/")
+os.environ['DJANGO_SETTINGS_MODULE'] = '%(project_name)s.settings'
 
 from django.core.handlers import wsgi
 application = wsgi.WSGIHandler()
@@ -37,7 +37,7 @@ def main(argv):
     local("echo project_library: %(project_name)s >> %(project_name)s/project.yaml" % locals())
     local("echo hosts: [\"%(domain)s\"] >> %(project_name)s/project.yaml" % locals())
 
-    open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi)
+    open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi % locals())
 
     settings_path = os.path.join(project_name, project_name, "settings.py")
     settings = open(settings_path).read()
