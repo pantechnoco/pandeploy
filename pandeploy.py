@@ -31,9 +31,9 @@ def domain(d):
 
 def deploy():
     run("mkdir -p " + target_dir('libs'))
-    run("mkdir -p " + target_dir('static'))
+    run("mkdir -p " + target_dir('media'))
 
-    put_directory("static", os.path.join('/domains/', env.domain))
+    put_directory("media", os.path.join('/domains/', env.domain))
     put_directory(env.main_library, target_dir("libs"))
 
     run("cd %s && python libs/%s/manage.py syncdb --noinput" % (os.path.join('/domains/', env.domain), env.main_library))
