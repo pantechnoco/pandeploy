@@ -4,6 +4,7 @@ import os, sys
 
 from fabric.state import env
 from fabric.api import local, run, put
+from fabric.contrib.project import rsync_project
 
 import yaml
 
@@ -21,21 +22,25 @@ target_dir = lambda p='': os.path.join('/domains/', env.domain, p)
 def clean():
     local("find . -name '*.py[co]' -exec rm {} \;")
 
-def put_directory(local_path, remote_path):
-    local("tar -cjf /tmp/transpackage.tbz %s" % (local_path,))
-    put("/tmp/transpackage.tbz", "/tmp/transpackage.tbz")
-    run("cd %s && tar -xjf /tmp/transpackage.tbz" % (remote_path,))
-
 def domain(d):
     env.domain = d
 
 def deploy():
     run("mkdir -p " + target_dir('libs'))
     run("mkdir -p " + target_dir('media'))
+    run("mkdir -p " + target_dir('data'))
 
-    put_directory("media", os.path.join('/domains/', env.domain))
-    put_directory(env.main_library, target_dir("libs"))
+    rsync_project(local_dir="media", remote_dir="/domains/%s/" % env.domain)
+    rsync_project(local_dir=env.main_library, remote_dir="/domains/%s/libs" % env.domain)
+    rsync_project(local_dir="data", remote_dir="/domains/%s/" % env.domain)
 
+    for local_dir in ('apps', 'libs'):
+        for pkg_path in os.listdir(local_dir):
+            rsync_project(
+                local_dir=os.path.join(local_dir, pkg_path),
+                remote_dir="/domains/%s/libs" % env.domain)
+
+    run("find . -name '*.py[co]' -exec rm {} \;")
     run("cd %s && python libs/%s/manage.py syncdb --noinput" % (os.path.join('/domains/', env.domain), env.main_library))
     put("root.wsgi", target_dir("root.wsgi"))
 
