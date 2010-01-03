@@ -1,9 +1,11 @@
-__all__ = ['clean', 'deploy', 'domain']
+from __future__ import with_statement
+__all__ = ['clean', 'clean_all', 'deploy', 'domain']
 
 import os, sys
 
 from fabric.state import env
 from fabric.api import local, run, put
+from fabric.context_managers import cd
 from fabric.contrib.project import rsync_project
 
 import yaml
@@ -19,28 +21,39 @@ env.main_library = project_config['project_library']
 
 target_dir = lambda p='': os.path.join('/domains/', env.domain, p)
 
-def clean():
-    local("find . -name '*.py[co]' -exec rm {} \;")
+def clean(glob):
+    for f in (local, run):
+        f("find . -name '%s' -exec rm {} \;" % (glob,))
+
+def clean_all():
+    clean('*.py[co]')
+    clean('*~')
 
 def domain(d):
     env.domain = d
 
 def deploy():
-    run("mkdir -p " + target_dir('libs'))
-    run("mkdir -p " + target_dir('media'))
-    run("mkdir -p " + target_dir('data'))
+    clean_all()
 
-    rsync_project(local_dir="media", remote_dir="/domains/%s/" % env.domain)
+    run("mkdir -p " + target_dir('libs'))
+
+    for directory in ('media', 'data', 'templates'):
+        if os.path.exists(directory):
+
+            run("mkdir -p " + target_dir(directory))
+            rsync_project(local_dir=directory, remote_dir="/domains/%s/" % env.domain)
+
     rsync_project(local_dir=env.main_library, remote_dir="/domains/%s/libs" % env.domain)
-    rsync_project(local_dir="data", remote_dir="/domains/%s/" % env.domain)
 
     for local_dir in ('apps', 'libs'):
-        for pkg_path in os.listdir(local_dir):
-            rsync_project(
-                local_dir=os.path.join(local_dir, pkg_path),
-                remote_dir="/domains/%s/libs" % env.domain)
+        if os.path.exists(local_dir):
+            for pkg_path in os.listdir(local_dir):
+                rsync_project(
+                    local_dir=os.path.join(local_dir, pkg_path),
+                    remote_dir="/domains/%s/libs" % env.domain)
 
     run("find . -name '*.py[co]' -exec rm {} \;")
-    run("cd %s && python libs/%s/manage.py syncdb --noinput" % (os.path.join('/domains/', env.domain), env.main_library))
+    with cd(os.path.join('/domains/', env.domain)):
+        run("python libs/%s/manage.py syncdb --noinput" % (env.main_library,))
     put("root.wsgi", target_dir("root.wsgi"))
 
