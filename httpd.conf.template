@@ -1,0 +1,36 @@
+LoadModule macro_module /usr/lib/apache2/modules/mod_macro.so
+LoadModule wsgi_module /usr/lib/apache2/modules/mod_wsgi.so
+#### {{ test }}
+
+{% for site in sites %}
+
+    # {{site}}
+
+    NameVirtualHost {{ site.domain }}
+    <VirtualHost {{ site.domain }}:{{ site.port|default:"80" }}>
+
+        {% for static in site.static %}
+            Alias /{{ static.url|default:static.path }}/ /domains/{{ site.domain }}/{{ static.path }}/
+
+            <Directory /domains/{{ site.domain }}/{{ static.path }}>
+                Order allow,deny
+                Allow from all
+
+                {% if static.index %}
+                    Options Indexes
+                    IndexOptions FancyIndexing
+                {% endif %}
+            </Directory>
+        {% endfor %}
+
+        {% if site.wsgi %}
+            WSGIProcessGroup {{ site.domain }}
+            WSGIDaemonProcess {{ site.domain }} processes={{ site.wsgi.processes|default:"1" }} threads=1 display-name=%{GROUP}
+
+            WSGIScriptAlias / /domains/{{ site.domain }}/root.wsgi
+        {% endif %}
+
+    </VirtualHost>
+
+{% endfor %}
+

@@ -1,5 +1,5 @@
 from __future__ import with_statement
-__all__ = ['clean', 'clean_all', 'deploy', 'domain']
+__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system']
 
 import os, sys
 
@@ -56,4 +56,18 @@ def deploy():
     with cd(os.path.join('/domains/', env.domain)):
         run("python libs/%s/manage.py syncdb --noinput" % (env.main_library,))
     put("root.wsgi", target_dir("root.wsgi"))
+    put("project.yaml", target_dir("project.yaml"))
 
+    update_system()
+
+def update_system():
+    put(os.path.join(os.path.dirname(__file__), "panconfig.py"), os.path.join("/", "usr", "bin", "panconfig.py"))
+    put(os.path.join(os.path.dirname(__file__), "djangorender.py"), os.path.join("/", "usr", "lib", "python2.6", "dist-packages", "djangorender.py"))
+    put(os.path.join(os.path.dirname(__file__), "httpd.conf.template"), os.path.join("/", "etc", "apache2"))
+
+    run("panconfig.py")
+
+    restart_apache()
+
+def restart_apache():
+    run("/etc/init.d/apache2 restart")
