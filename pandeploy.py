@@ -1,5 +1,5 @@
 from __future__ import with_statement
-__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build_settings']
+__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build']
 
 import os, sys
 
@@ -38,11 +38,17 @@ def domain(d):
 
 def build():
     build_settings()
+    build_manage()
 
 def build_settings():
     settings_template_path = os.path.join(os.path.dirname(__file__), "settings.template")
     settings_code = djangorender.render_path(settings_template_path, **project_config)
     open(os.path.join(env.main_library, "settings.py"), 'w').write(settings_code)
+
+def build_manage():
+    template_path = os.path.join(os.path.dirname(__file__), "manage.py.template")
+    result = djangorender.render_path(template_path, **project_config)
+    open(os.path.join(env.main_library, "manage.py"), 'w').write(result)
 
 def deploy():
     clean_all()

@@ -93,6 +93,9 @@ TEMPLATE_DIRS = (
     # Don't forget to use absolute paths, not relative paths.
     os.path.abspath(os.path.join(django_path, "contrib", "admin", "templates")),
     os.path.join(os.path.dirname(__file__), '..', '..', 'templates'),
+    {% if not template_dirs %}
+        '/domains/{{ domain }}/templates/',
+    {% endif %}
     {% for template_dir in template_dirs %}
         '{{ template_dir }}',
     {% endfor %}
@@ -108,3 +111,10 @@ INSTALLED_APPS = (
         '{{ app }}',
     {% endfor %}
 )
+
+{% for extra_setting in django_extra_settings.items %}
+
+{{extra_setting.0}} = "{{extra_setting.1}}"
+
+{% endfor %}
+
