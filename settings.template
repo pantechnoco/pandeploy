@@ -29,11 +29,11 @@ DATABASE_PASSWORD = ''         # Not used with sqlite3.
 DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
 DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_POST = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = '{{ email.host.user }}'
-EMAIL_HOST_PASSWORD = '{{ email.host.password }}'
+EMAIL_HOST = '{{ email.host }}'
+EMAIL_POST = {{ email.port }}
+EMAIL_USE_TLS = {{ email.tls }}
+EMAIL_HOST_USER = '{{ email.username }}'
+EMAIL_HOST_PASSWORD = '{{ email.password }}'
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
