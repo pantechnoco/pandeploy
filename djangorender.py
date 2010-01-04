@@ -11,7 +11,7 @@ if 'DJANGO_SETTINGS_MODULE' not in os.environ:
     sys.modules["fakesettings"] = types.ModuleType("fakesettings")
 
 def render_str(template_str, **context):
-    return template.Template(template_str).render(template.Context(context))
+    return template.Template(template_str).render(template.Context(context, autoescape=False))
 
 def render_path(template_path, **context):
     return render_str(open(template_path).read(), **context)
