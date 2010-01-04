@@ -24,7 +24,7 @@ def main():
         else:
             sites.append(site_cfg)
 
-    print sites
+    sites.sort(key=lambda site: site.get('default', 'no') == 'no')
 
     httpd_conf = render_path("/etc/apache2/httpd.conf.template", sites=sites, test="foobarbaz")
     open("/etc/apache2/httpd.conf", 'w').write(httpd_conf)

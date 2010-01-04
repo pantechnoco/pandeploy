@@ -5,7 +5,9 @@ NameVirtualHost 74.207.234.177:80
 
 {% for site in sites %}
 
-    <VirtualHost {{ site.domain }}:{{ site.port|default:"80" }}>
+    <VirtualHost 74.207.234.177:80>
+        
+        ServerName {{ site.domain }}:{{ site.port|default:"80" }}
 
         {% for static in site.static %}
             Alias /{{ static.url|default:static.path }}/ /domains/{{ site.domain }}/{{ static.path }}/
@@ -32,6 +34,3 @@ NameVirtualHost 74.207.234.177:80
 
 {% endfor %}
 
-<VirtualHost *:80>
-    Redirect / http://pantechnoco.com/
-</VirtualHost>
