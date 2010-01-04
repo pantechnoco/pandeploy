@@ -69,5 +69,5 @@ def update_system():
 
     restart_apache()
 
-def restart_apache():
-    run("/etc/init.d/apache2 restart")
+def reload_apache():
+    run("/etc/init.d/apache2 reload")
