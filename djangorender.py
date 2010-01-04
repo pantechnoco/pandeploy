@@ -10,6 +10,12 @@ if 'DJANGO_SETTINGS_MODULE' not in os.environ:
     os.environ['DJANGO_SETTINGS_MODULE'] = "fakesettings"
     sys.modules["fakesettings"] = types.ModuleType("fakesettings")
 
+    import fakesettings
+
+    fakesettings.INSTALLED_APPS = (
+        '_django_tt',
+    )
+
 def render_str(template_str, **context):
     return template.Template(template_str).render(template.Context(context, autoescape=False))
 
