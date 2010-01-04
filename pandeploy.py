@@ -67,7 +67,7 @@ def update_system():
 
     run("panconfig.py")
 
-    restart_apache()
+    reload_apache()
 
 def reload_apache():
     run("/etc/init.d/apache2 reload")

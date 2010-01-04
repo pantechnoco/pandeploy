@@ -1,12 +1,10 @@
 LoadModule macro_module /usr/lib/apache2/modules/mod_macro.so
 LoadModule wsgi_module /usr/lib/apache2/modules/mod_wsgi.so
-#### {{ test }}
+
+NameVirtualHost 74.207.234.177:80 
 
 {% for site in sites %}
 
-    # {{site}}
-
-    NameVirtualHost {{ site.domain }}
     <VirtualHost {{ site.domain }}:{{ site.port|default:"80" }}>
 
         {% for static in site.static %}
@@ -34,3 +32,6 @@ LoadModule wsgi_module /usr/lib/apache2/modules/mod_wsgi.so
 
 {% endfor %}
 
+<VirtualHost *:80>
+    Redirect / http://pantechnoco.com/
+</VirtualHost>
