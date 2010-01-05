@@ -54,17 +54,7 @@ def main(argv):
         local("echo hosts: [\"%(domain)s\"] >> %(project_name)s/project.yaml" % locals())
 
         open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi % locals())
-
-        settings_path = os.path.join(project_name, project_name, "settings.py")
-        settings = open(settings_path).read()
-        settings = settings.replace(
-            "DATABASE_ENGINE = ''",
-            "DATABASE_ENGINE = 'sqlite3'")
-        settings = settings.replace(
-            "DATABASE_NAME = ''",
-            "DATABASE_NAME = '/domains/%(domain)s/db.sqlite3'" % locals())
-        open(settings_path, 'w').write(settings)
-
+ 
     return 0
 
 if __name__ == '__main__':

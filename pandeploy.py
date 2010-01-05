@@ -32,10 +32,6 @@ if 'extends' in project_config:
 env.user = 'root'
 env.hosts = project_config['hosts']
 
-env.domain = project_config['domain']
-env.domain_path = "/domains/%s/" % (env.domain,)
-env.main_library = project_config['project_library']
-
 target_dir = lambda p='': os.path.join('/domains/', env.domain, p)
 
 # Exposed developer commands
@@ -50,20 +46,35 @@ def clean_all():
 
 def domain(d):
     env.domain = d
+   
+    # Change other things that depend on domain
+    env.domain_path = "/domains/%s/" % (env.domain,)
+    env.main_library = project_config['project_library']
+
+# Always run once with test domain first
+domain(project_config["domain"])
+
+def public():
+    domain(project_config['public_domain'])
 
 def build():
     build_settings()
     build_manage()
+    build_wsgi()
+
+def _build_from_template(src, dest):
+    settings_template_path = os.path.join(os.path.dirname(__file__), src)
+    settings_code = djangorender.render_path(settings_template_path, **project_config)
+    open(dest, 'w').write(settings_code)
 
 def build_settings():
-    settings_template_path = os.path.join(os.path.dirname(__file__), "settings.template")
-    settings_code = djangorender.render_path(settings_template_path, **project_config)
-    open(os.path.join(env.main_library, "settings.py"), 'w').write(settings_code)
+    _build_from_template("settings.template", os.path.join(env.main_library, "settings.py"))
 
 def build_manage():
-    template_path = os.path.join(os.path.dirname(__file__), "manage.py.template")
-    result = djangorender.render_path(template_path, **project_config)
-    open(os.path.join(env.main_library, "manage.py"), 'w').write(result)
+    _build_from_template("manage.py.template", os.path.join(env.main_library, "manage.py"))
+
+def build_wsgi():
+    _build_from_template("wsgi.template", "root.wsgi") 
 
 def deploy():
     clean_all()

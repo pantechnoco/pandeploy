@@ -7,7 +7,7 @@ NameVirtualHost 74.207.234.177:80
 
     <VirtualHost 74.207.234.177:80>
         
-        ServerName {{ site.domain }}:{{ site.port|default:"80" }}
+        ServerName {{ site.domain }}
 
         {% for static in site.static %}
             Alias /{{ static.url|default:static.path }}/ /domains/{{ site.domain }}/{{ static.path }}/
