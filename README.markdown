@@ -33,6 +33,10 @@ are automatically generated from the project.yaml file.
 
 In every project, this configuration file sets up everything.
 
+**extends** (optional) is the path to another domain's configuration, which
+will serve as a base. This helps manage multiple sites with very similar
+settings. Lists will be appended and mappings will be merged.
+
 **default** is set to 'yes' if it should be the default domain to serve
 for Apache
 
