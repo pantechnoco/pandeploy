@@ -12,7 +12,22 @@ import djangorender
 
 import yaml
 
-project_config = yaml.load(file("project.yaml"))
+def _dict_deep_update(target, source):
+    for key, value in source.iteritems():
+        if key in target:
+            if isinstance(value, list):
+                target[key] = target[key] + value
+                continue
+            elif isinstance(value, dict):
+                _dict_deep_update(target[key], value)
+                continue
+        target[key] = value
+
+project_config = yaml.load(open("project.yaml"))
+if 'extends' in project_config:
+    extends = yaml.load(open(project_config['extends']))
+    _dict_deep_update(extends, project_config)
+    project_config = extends
 
 env.user = 'root'
 env.hosts = project_config['hosts']
