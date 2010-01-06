@@ -91,6 +91,7 @@ def build_wsgi():
 
 def deploy():
     clean_all()
+    build()
 
     run("mkdir -p " + target_dir('libs'))
 
