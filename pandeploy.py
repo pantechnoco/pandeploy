@@ -44,6 +44,10 @@ def clean(glob):
 def clean_all():
     clean('*.py[co]')
     clean('*~')
+    clean("root.wsgi")
+    clean("project_version.yaml")
+    local("rm %s/settings.py" % (env.project_library,))
+    local("rm %s/manage.py" % (env.project_library,))
 
 def domain(d, version=None):
     if version:
