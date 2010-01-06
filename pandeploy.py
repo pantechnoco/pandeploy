@@ -1,5 +1,5 @@
 from __future__ import with_statement
-__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build']
+__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias_version']
 
 import os, sys
 
@@ -31,6 +31,7 @@ if 'extends' in project_config:
 
 env.user = 'root'
 env.hosts = project_config['hosts']
+env.original_domain = project_config['domain']
 
 target_dir = lambda p='': os.path.join('/domains/', env.domain, p)
 
@@ -44,23 +45,35 @@ def clean_all():
     clean('*.py[co]')
     clean('*~')
 
-def domain(d):
-    env.domain = d
-   
+def domain(d, version=None):
+    if version:
+        env.domain = "%s.v.%s" % (version, d)
+    else:
+        env.domain = d
+    project_config["domain"] = env.domain
+
+    on_domain_change()
+
+def on_domain_change():
     # Change other things that depend on domain
     env.domain_path = "/domains/%s/" % (env.domain,)
     env.main_library = project_config['project_library']
 
-# Always run once with test domain first
-domain(project_config["domain"])
+    build_project_version_yaml()
 
-def public():
-    domain(project_config['public_domain'])
+def build_project_version_yaml():
+    original = open("project.yaml").read()
+    this_version = original.replace(env.original_domain, env.domain)
+    open("project_version.yaml", "w").write(this_version)
+
+# Always run once with test domain first
+domain(project_config["domain"], version=project_config["version"])
 
 def build():
     build_settings()
     build_manage()
     build_wsgi()
+    build_project_version_yaml()
 
 def _build_from_template(src, dest):
     settings_template_path = os.path.join(os.path.dirname(__file__), src)
@@ -100,7 +113,20 @@ def deploy():
     with cd(os.path.join('/domains/', env.domain)):
         run("python libs/%s/manage.py syncdb --noinput" % (env.main_library,))
     put("root.wsgi", target_dir("root.wsgi"))
-    put("project.yaml", target_dir("project.yaml"))
+
+    write_deploy_cfg()
+
+def alias_version(version):
+    original_domain = env.original_domain
+    version_domain = "%s.v.%s" % (version, original_domain)
+    project_config["alias_to"] = version_domain
+    domain(original_domain)
+    yaml.dump(project_config, open("project_version.yaml", "w"))
+
+    write_deploy_cfg()
+
+def write_deploy_cfg():
+    put("project_version.yaml", target_dir("project.yaml"))
 
     update_system()
 
