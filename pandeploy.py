@@ -29,6 +29,8 @@ if 'extends' in project_config:
     _dict_deep_update(extends, project_config)
     project_config = extends
 
+    print "merged:", project_config
+
 env.user = 'root'
 env.hosts = project_config['hosts']
 env.original_domain = project_config['domain']
@@ -46,8 +48,8 @@ def clean_all():
     clean('*~')
     clean("root.wsgi")
     clean("project_version.yaml")
-    local("rm %s/settings.py" % (env.project_library,))
-    local("rm %s/manage.py" % (env.project_library,))
+    local("rm %s/settings.py" % (env.main_library,))
+    local("rm %s/manage.py" % (env.main_library,))
 
 def domain(d, version=None):
     if version:
@@ -66,7 +68,10 @@ def on_domain_change():
     build_project_version_yaml()
 
 def build_project_version_yaml():
-    original = open("project.yaml").read()
+    reverted = dict(project_config)
+    reverted['domain'] = env.original_domain
+    yaml.dump(reverted, open("project_version.yaml", "w"))
+    original = open("project_version.yaml").read()
     this_version = original.replace(env.original_domain, env.domain)
     open("project_version.yaml", "w").write(this_version)
 
