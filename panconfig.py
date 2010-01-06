@@ -16,15 +16,24 @@ import yaml
 
 def main():
     sites = []
+    aliases = {}
     for site in os.listdir("/domains"):
         try:
             site_cfg = yaml.load(open(os.path.join("/domains", site, "project.yaml")))
         except IOError:
             continue
         else:
-            sites.append(site_cfg)
+            print site_cfg['domain'], site_cfg.get('alias_to'), site
+            if 'alias_to' in site_cfg:
+                aliases.setdefault(site_cfg['alias_to'], []).append( site_cfg['domain'] )
+            else:
+                sites.append(site_cfg)
 
     sites.sort(key=lambda site: site.get('default', 'no') == 'no')
+    print "aliases", aliases
+    for site in sites:
+        if site['domain'] in aliases:
+            site['domain_aliases'] = aliases[site['domain']]
 
     httpd_conf = render_path("/etc/apache2/httpd.conf.template", sites=sites, test="foobarbaz")
     open("/etc/apache2/httpd.conf", 'w').write(httpd_conf)

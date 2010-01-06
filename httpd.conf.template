@@ -9,6 +9,11 @@ NameVirtualHost 74.207.234.177:80
         
         ServerName {{ site.domain }}
 
+        # {{ site.domain_aliases }}
+        {% for domain_alias in site.domain_aliases %}
+            ServerAlias {{ domain_alias }}
+        {% endfor %}
+
         {% for static in site.static %}
             Alias /{{ static.url|default:static.path }}/ /domains/{{ site.domain }}/{{ static.path }}/
 
