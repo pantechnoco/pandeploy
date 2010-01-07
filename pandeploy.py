@@ -1,5 +1,5 @@
 from __future__ import with_statement
-__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias_version']
+__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias', 'alias_version']
 
 import os, sys
 
@@ -28,8 +28,6 @@ if 'extends' in project_config:
     extends = yaml.load(open(project_config['extends']))
     _dict_deep_update(extends, project_config)
     project_config = extends
-
-    print "merged:", project_config
 
 env.user = 'root'
 env.hosts = project_config['hosts']
@@ -127,11 +125,15 @@ def deploy():
     write_deploy_cfg()
 
 def alias_version(version):
-    run("mkdir /domains/%s" % (env.original_domain,))
-    original_domain = env.original_domain
-    version_domain = "%s.v.%s" % (version, original_domain)
-    project_config["alias_to"] = version_domain
-    domain(original_domain)
+    if version == "current":
+        version = project_config["version"]
+    version_domain = "%s.v.%s" % (version, env.original_domain)
+    alias(env.original_domain, version_domain)
+
+def alias(from_domain, to_domain):
+    run("mkdir -p /domains/%s" % (from_domain,))
+    project_config["alias_to"] = to_domain
+    domain(from_domain)
     yaml.dump(project_config, open("project_version.yaml", "w"))
 
     write_deploy_cfg()
