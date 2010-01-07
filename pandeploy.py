@@ -127,6 +127,7 @@ def deploy():
     write_deploy_cfg()
 
 def alias_version(version):
+    run("mkdir /domains/%s" % (env.original_domain,))
     original_domain = env.original_domain
     version_domain = "%s.v.%s" % (version, original_domain)
     project_config["alias_to"] = version_domain

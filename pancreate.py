@@ -71,6 +71,8 @@ def main(argv):
         cfg_file.close()
 
         open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi % locals())
+
+        local("cd %(project_name)s && fab deploy alias_version:0.1" % locals())
  
     return 0
 
