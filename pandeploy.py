@@ -4,7 +4,7 @@ __all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', '
 import os, sys
 
 from fabric.state import env
-from fabric.api import local, run, put
+from fabric.api import local, run, put, get
 from fabric.context_managers import cd
 from fabric.contrib.project import rsync_project
 
@@ -46,8 +46,8 @@ def clean_all():
     clean('*~')
     clean("root.wsgi")
     clean("project_version.yaml")
-    local("rm %s/settings.py" % (env.main_library,))
-    local("rm %s/manage.py" % (env.main_library,))
+    local("rm -f %s/settings.py" % (env.main_library,))
+    local("rm -f %s/manage.py" % (env.main_library,))
 
 def domain(d, version=None):
     if version:
@@ -97,9 +97,17 @@ def build_wsgi():
     _build_from_template("wsgi.template", "root.wsgi") 
 
 def deploy():
+    if project_config["version"] == active_version():
+        print "-------------------------------------"
+        print "Refusing to deploy to active version."
+        return -1
+
     clean_all()
     build()
 
+    run("if [ -d /domains/%(domain)s/ ]; then echo; else if [ -d /domains/%(original_domain)s/ ]; \
+        then cp -R /domains/%(original_domain)s /domains/%(domain)s; fi; fi" %
+        {'domain': env.domain, 'original_domain': env.original_domain})
     run("mkdir -p " + target_dir('libs'))
 
     for directory in ('media', 'data', 'templates'):
@@ -147,6 +155,11 @@ def test(verbose=False):
     run(("cd /domains/%(domain)s && python libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) % project_config)
 
 # Server side commands
+
+def active_version():
+    get(os.path.join("/", "domains", env.original_domain, "project.yaml"), "/tmp/current.yaml")
+    current = yaml.load(open("/tmp/current.yaml"))
+    return current["version"]
 
 def update_system():
     put(os.path.join(os.path.dirname(__file__), "panconfig.py"), os.path.join("/", "usr", "bin", "panconfig.py"))
