@@ -1,5 +1,5 @@
 from __future__ import with_statement
-__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias', 'alias_version']
+__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias', 'alias_version', 'test']
 
 import os, sys
 
@@ -142,6 +142,9 @@ def write_deploy_cfg():
     put("project_version.yaml", target_dir("project.yaml"))
 
     update_system()
+
+def test(verbose=False):
+    run(("cd /domains/%(domain)s && python libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) % project_config)
 
 # Server side commands
 
