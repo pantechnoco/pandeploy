@@ -25,6 +25,9 @@ def _dict_deep_update(target, source):
                 continue
         target[key] = value
 
+def _init_d(service, command):
+    run("/etc/init.d/%s %s" % (service, command))
+
 # Configuration loading
 
 project_config = yaml.load(open("project.yaml"))
@@ -173,7 +176,5 @@ def update_system():
 
     run("panconfig.py")
 
-    reload_apache()
+    _init_d('apache', 'reload')
 
-def reload_apache():
-    run("/etc/init.d/apache2 reload")
