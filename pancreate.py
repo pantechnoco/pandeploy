@@ -72,6 +72,11 @@ def main(argv):
 
         open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi % locals())
 
+        gitignore_template = os.path.join(os.path.dirname(__file__), 'default_gitignore')
+        local("cd %(project_name)s &&\
+            python -m djangorender -p %(gitignore_template)s -s project_name=%(project_name)s > .gitignore &&\
+            git init && git add . && git commit -m 'initial commit'" % locals())
+
         local("cd %(project_name)s && fab deploy alias_version:0.1" % locals())
  
     return 0
