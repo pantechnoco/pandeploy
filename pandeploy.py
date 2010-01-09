@@ -12,6 +12,8 @@ import djangorender
 
 import yaml
 
+# Utility functions
+
 def _dict_deep_update(target, source):
     for key, value in source.iteritems():
         if key in target:
@@ -22,6 +24,8 @@ def _dict_deep_update(target, source):
                 _dict_deep_update(target[key], value)
                 continue
         target[key] = value
+
+# Configuration loading
 
 project_config = yaml.load(open("project.yaml"))
 if 'extends' in project_config:
@@ -56,10 +60,7 @@ def domain(d, version=None):
         env.domain = d
     project_config["domain"] = env.domain
 
-    on_domain_change()
-
-def on_domain_change():
-    # Change other things that depend on domain
+     # Change other things that depend on domain
     env.domain_path = "/domains/%s/" % (env.domain,)
     env.main_library = project_config['project_library']
 
@@ -157,9 +158,13 @@ def test(verbose=False):
 # Server side commands
 
 def active_version():
-    get(os.path.join("/", "domains", env.original_domain, "project.yaml"), "/tmp/current.yaml")
-    current = yaml.load(open("/tmp/current.yaml"))
-    return current["version"]
+    try:
+        get(os.path.join("/", "domains", env.original_domain, "project.yaml"), "/tmp/current.yaml")
+    except:
+        return
+    else:
+        current = yaml.load(open("/tmp/current.yaml"))
+        return current["version"]
 
 def update_system():
     put(os.path.join(os.path.dirname(__file__), "panconfig.py"), os.path.join("/", "usr", "bin", "panconfig.py"))
