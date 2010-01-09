@@ -66,14 +66,6 @@ def domain(d, version=None):
 
     build_project_version_yaml()
 
-def build_project_version_yaml():
-    reverted = dict(project_config)
-    reverted['domain'] = env.original_domain
-    yaml.dump(reverted, open("project_version.yaml", "w"))
-    original = open("project_version.yaml").read()
-    this_version = original.replace(env.original_domain, env.domain)
-    open("project_version.yaml", "w").write(this_version)
-
 # Always run once with test domain first
 domain(project_config["domain"], version=project_config["version"])
 
@@ -96,6 +88,14 @@ def build_manage():
 
 def build_wsgi():
     _build_from_template("wsgi.template", "root.wsgi") 
+
+def build_project_version_yaml():
+    reverted = dict(project_config)
+    reverted['domain'] = env.original_domain
+    yaml.dump(reverted, open("project_version.yaml", "w"))
+    original = open("project_version.yaml").read()
+    this_version = original.replace(env.original_domain, env.domain)
+    open("project_version.yaml", "w").write(this_version)
 
 def deploy():
     if project_config["version"] == active_version():
