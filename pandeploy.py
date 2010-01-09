@@ -1,5 +1,5 @@
 from __future__ import with_statement
-__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias', 'alias_version', 'test']
+__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias', 'alias_version', 'purge_old', 'purge', 'test']
 
 import os, sys
 
@@ -69,9 +69,6 @@ def domain(d, version=None):
 
     build_project_version_yaml()
 
-# Always run once with test domain first
-domain(project_config["domain"], version=project_config["version"])
-
 def build():
     build_settings()
     build_manage()
@@ -136,6 +133,12 @@ def deploy():
 
     write_deploy_cfg()
 
+def purge(domain):
+    run('rm -fr /domains/%s' % (domain,))
+
+def purge_old():
+    run('find /domains -name "*.v.%s" -not -name "%s*" -exec rm -fr {} \;' % (env.original_domain, active_version()))
+
 def alias_version(version):
     if version == "current":
         version = project_config["version"]
@@ -177,4 +180,7 @@ def update_system():
     run("panconfig.py")
 
     _init_d('apache', 'reload')
+
+# Always run once with test domain first
+domain(project_config["domain"], version=project_config["version"])
 
