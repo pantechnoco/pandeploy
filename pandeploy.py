@@ -138,7 +138,7 @@ def purge(domain):
     run('rm -fr /domains/%s' % (domain,))
 
 def purge_old():
-    run('find /domains -name "*.v.%s" -not -name "%s*" -exec rm -fr {} \;' % (env.original_domain, active_version()))
+    run('find /domains -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.original_domain, active_version()))
 
 def alias_version(version):
     if version == "current":
