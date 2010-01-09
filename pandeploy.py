@@ -179,7 +179,7 @@ def update_system():
 
     run("panconfig.py")
 
-    _init_d('apache', 'reload')
+    _init_d('apache2', 'reload')
 
 # Always run once with test domain first
 domain(project_config["domain"], version=project_config["version"])
