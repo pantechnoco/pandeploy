@@ -106,9 +106,10 @@ def deploy():
     clean_all()
     build()
 
-    run("if [ -d /domains/%(domain)s/ ]; then echo; else if [ -d /domains/%(original_domain)s/ ]; \
-        then cp -R /domains/%(original_domain)s /domains/%(domain)s; fi; fi" %
-        {'domain': env.domain, 'original_domain': env.original_domain})
+    current_domain = "%s.v.%s" % (active_version(), env.original_domain)
+    run("if [ -d /domains/%(domain)s/ ]; then echo; else if [ -d /domains/%(current_domain)s/ ]; \
+        then cp -R /domains/%(current_domain)s /domains/%(domain)s; fi; fi" %
+        {'domain': env.domain, 'current_domain': current_domain})
     run("mkdir -p " + target_dir('libs'))
 
     for directory in ('media', 'data', 'templates'):
