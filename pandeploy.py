@@ -39,7 +39,7 @@ else:
     _dict_deep_update(extends, project_config)
     project_config = extends
 
-env.user = 'root'
+env.user = project_config['user']
 env.hosts = project_config['hosts']
 env.original_domain = project_config['domain']
 
