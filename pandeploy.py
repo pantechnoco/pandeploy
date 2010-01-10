@@ -31,8 +31,11 @@ def _init_d(service, command):
 # Configuration loading
 
 project_config = yaml.load(open("project.yaml"))
-if 'extends' in project_config:
-    extends = yaml.load(open(project_config['extends']))
+try:
+    extends = yaml.load(open("project_extends.yaml"))
+except IOError:
+    pass
+else:
     _dict_deep_update(extends, project_config)
     project_config = extends
 
