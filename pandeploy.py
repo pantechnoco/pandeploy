@@ -28,6 +28,9 @@ def _dict_deep_update(target, source):
 def _init_d(service, command):
     run("/etc/init.d/%s %s" % (service, command))
 
+def target_dir(p=''):
+    return os.path.join('/domains/', env.domain, p)
+
 # Configuration loading
 
 project_config = yaml.load(open("project.yaml"))
@@ -42,8 +45,6 @@ else:
 env.user = project_config['user']
 env.hosts = project_config['hosts']
 env.original_domain = project_config['domain']
-
-target_dir = lambda p='': os.path.join('/domains/', env.domain, p)
 
 # Exposed developer commands
 
