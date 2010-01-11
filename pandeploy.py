@@ -79,10 +79,11 @@ def clean_all():
 
 def domain(d, version=None):
     env.domain = d
-    if version:
-        env.version_domain = "%s.v.%s" % (version, d)
-    else:
-        env.version_domain = d
+    if version is None:
+        version = project_config["version"]
+
+    env.version_domain = "%s.v.%s" % (version, d)
+
     project_config["domain"] = env.domain
     project_config["version_domain"] = env.version_domain
 
@@ -163,8 +164,8 @@ def deploy():
 
     write_deploy_cfg()
 
-def purge(domain):
-    run('rm -fr ' + target_dir(domain=domain))
+def purge(domain, version):
+    run('rm -fr ' + target_dir(domain=domain, version=version))
 
 def purge_old():
     run('find /domains -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.domain, active_version()))
