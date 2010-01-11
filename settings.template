@@ -30,7 +30,7 @@ DATABASE_HOST = ''             # Set to empty string for localhost. Not used wit
 DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.
 
 EMAIL_HOST = '{{ email.host }}'
-EMAIL_POST = {{ email.port }}
+EMAIL_PORT = {{ email.port }}
 EMAIL_USE_TLS = {{ email.tls }}
 EMAIL_HOST_USER = '{{ email.username }}'
 EMAIL_HOST_PASSWORD = '{{ email.password }}'
