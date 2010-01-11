@@ -28,8 +28,12 @@ def _dict_deep_update(target, source):
 def _init_d(service, command):
     run("/etc/init.d/%s %s" % (service, command))
 
-def target_dir(p=''):
-    return os.path.join('/domains/', env.domain, p)
+def target_dir(path='', version=None, domain=None):
+    if version is None:
+        domain = domain or env.domain
+    else:
+        domain = '.v.'.join((version, domain or env.original_domain))
+    return os.path.join('/domains/', domain, path)
 
 # Configuration loading
 
@@ -68,7 +72,7 @@ def domain(d, version=None):
     project_config["domain"] = env.domain
 
      # Change other things that depend on domain
-    env.domain_path = "/domains/%s/" % (env.domain,)
+    env.domain_path = target_dir()
     env.main_library = project_config['project_library']
 
     build_project_version_yaml()
@@ -111,35 +115,42 @@ def deploy():
     build()
 
     current_domain = "%s.v.%s" % (active_version(), env.original_domain)
-    run("if [ -d /domains/%(domain)s/ ]; then echo; else if [ -d /domains/%(current_domain)s/ ]; \
-        then cp -R /domains/%(current_domain)s /domains/%(domain)s; fi; fi" %
-        {'domain': env.domain, 'current_domain': current_domain})
+
+    # If this version has never been deployed to this machine before,
+    # and a previous version exists on it,
+    # copy the previous version as the base of the new.
+    run("if [ -d %(new_version_path)s ]; then echo; else if [ -d %(current_version_path)s ]; \
+        then cp -R %(current_version_path)s %(new_version_path)s; fi; fi" %
+
+        {'current_version_path': target_dir(version=active_version()),
+         'new_version_path': target_dir(version=project_config['version'])})
+
     run("mkdir -p " + target_dir('libs'))
 
     for directory in ('media', 'data', 'templates'):
         if os.path.exists(directory):
 
             run("mkdir -p " + target_dir(directory))
-            rsync_project(local_dir=directory, remote_dir="/domains/%s/" % env.domain)
+            rsync_project(local_dir=directory, remote_dir=target_dir())
 
-    rsync_project(local_dir=env.main_library, remote_dir="/domains/%s/libs" % env.domain)
+    rsync_project(local_dir=env.main_library, remote_dir=target_dir('libs'))
 
     for local_dir in ('apps', 'libs'):
         if os.path.exists(local_dir):
             for pkg_path in os.listdir(local_dir):
                 rsync_project(
                     local_dir=os.path.join(local_dir, pkg_path),
-                    remote_dir="/domains/%s/libs" % env.domain)
+                    remote_dir=target_dir('libs'))
 
     run("find . -name '*.py[co]' -exec rm {} \;")
-    with cd(os.path.join('/domains/', env.domain)):
+    with cd(os.path.join(target_dir())):
         run("python libs/%s/manage.py syncdb --noinput" % (env.main_library,))
     put("root.wsgi", target_dir("root.wsgi"))
 
     write_deploy_cfg()
 
 def purge(domain):
-    run('rm -fr /domains/%s' % (domain,))
+    run('rm -fr ' + target_dir(domain=domain))
 
 def purge_old():
     run('find /domains -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.original_domain, active_version()))
@@ -151,7 +162,7 @@ def alias_version(version):
     alias(env.original_domain, version_domain)
 
 def alias(from_domain, to_domain):
-    run("mkdir -p /domains/%s" % (from_domain,))
+    run("mkdir -p " + target_dir(domain=from_domain))
     project_config["alias_to"] = to_domain
     domain(from_domain)
     yaml.dump(project_config, open("project_version.yaml", "w"))
@@ -164,7 +175,8 @@ def write_deploy_cfg():
     update_system()
 
 def test(verbose=False):
-    run(("cd /domains/%(domain)s && python libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) % project_config)
+    run(("cd %(domain_path)s && python libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) %
+    {'domain_path': target_dir(), 'project_library': project_config['project_library']})
 
 # Server side commands
 
