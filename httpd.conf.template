@@ -7,7 +7,7 @@ NameVirtualHost 74.207.234.177:80
 
     <VirtualHost 74.207.234.177:80>
         
-        ServerName {{ site.domain }}
+        ServerName {{ site.version }}.v.{{ site.domain }}
 
         # {{ site.domain_aliases }}
         {% for domain_alias in site.domain_aliases %}
@@ -15,9 +15,9 @@ NameVirtualHost 74.207.234.177:80
         {% endfor %}
 
         {% for static in site.static %}
-            Alias /{{ static.url|default:static.path }}/ /domains/{{ site.domain }}/{{ static.path }}/
+            Alias /{{ static.url|default:static.path }}/ /domains/{{ site.domain }}/{{ site.version }}.v.{{ site.domain }}/{{ static.path }}/
 
-            <Directory /domains/{{ site.domain }}/{{ static.path }}>
+            <Directory /domains/{{ site.domain }}/{{ site.version }}.v.{{ site.domain }}/{{ static.path }}>
                 Order allow,deny
                 Allow from all
 
@@ -29,10 +29,10 @@ NameVirtualHost 74.207.234.177:80
         {% endfor %}
 
         {% if site.wsgi %}
-            WSGIProcessGroup {{ site.domain }}
-            WSGIDaemonProcess {{ site.domain }} processes={{ site.wsgi.processes|default:"1" }} threads=1 display-name=%{GROUP}
+            WSGIProcessGroup {{ site.domain }}-{{ site.version }}
+            WSGIDaemonProcess {{ site.domain }}-{{ site.version }} processes={{ site.wsgi.processes|default:"1" }} threads=1 display-name=%{GROUP}
 
-            WSGIScriptAlias / /domains/{{ site.domain }}/root.wsgi
+            WSGIScriptAlias / /domains/{{ site.domain }}/{{ site.version }}.v.{{ site.domain }}/root.wsgi
         {% endif %}
 
     </VirtualHost>

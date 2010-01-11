@@ -1,7 +1,9 @@
 
-import os, sys
+import sys, os
+import __main__
 
-sys.path.append("/domains/{{ domain }}/libs/")
+os.chdir("/domains/{{ domain }}/{{ version }}.v.{{ domain }}/")
+sys.path.append("/domains/{{ domain }}/{{ version }}.v.{{ domain }}/libs/")
 os.environ['DJANGO_SETTINGS_MODULE'] = '{{ project_library }}.settings'
 
 from django.core.handlers import wsgi

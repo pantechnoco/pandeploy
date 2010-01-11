@@ -21,7 +21,7 @@ MANAGERS = ADMINS
 DATABASE_ENGINE = '{{ database.engine }}'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
 
 {% if database.engine = 'sqlite3' %}
-DATABASE_NAME = '/domains/{{ domain }}/db.sqlite'             # Or path to database file if using sqlite3.
+DATABASE_NAME = '/domains/{{ domain }}/{{ version }}.v.{{ domain }}/db.sqlite'             # Or path to database file if using sqlite3.
 {% endif %}
 
 DATABASE_USER = ''             # Not used with sqlite3.
@@ -54,12 +54,12 @@ USE_I18N = True
 
 # Absolute path to the directory that holds media.
 # Example: "/home/media/media.lawrence.com/"
-MEDIA_ROOT = '/domains/{{ domain }}/media/'
+MEDIA_ROOT = '/domains/{{ domain }}/{{ version }}.v.{{ domain }}/media/'
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash if there is a path component (optional in other cases).
 # Examples: "http://media.lawrence.com", "http://example.com/media/"
-MEDIA_URL = 'http://{{ domain }}/media/'
+MEDIA_URL = '/media/'
 
 # URL prefix for admin media -- CSS, JavaScript and images. Make sure to use a
 # trailing slash.
@@ -94,7 +94,7 @@ TEMPLATE_DIRS = (
     os.path.abspath(os.path.join(django_path, "contrib", "admin", "templates")),
     os.path.join(os.path.dirname(__file__), '..', '..', 'templates'),
     {% if not template_dirs %}
-        '/domains/{{ domain }}/templates/',
+        '/domains/{{ domain }}/{{ version }}.v.{{ domain }}/templates/',
     {% endif %}
     {% for template_dir in template_dirs %}
         '{{ template_dir }}',

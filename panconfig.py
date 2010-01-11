@@ -17,17 +17,20 @@ import yaml
 def main():
     sites = []
     aliases = {}
-    for site in os.listdir("/domains"):
-        try:
-            site_cfg = yaml.load(open(os.path.join("/domains", site, "project.yaml")))
-        except IOError:
-            continue
-        else:
-            print site_cfg['domain'], site_cfg.get('alias_to'), site
-            if 'alias_to' in site_cfg:
-                aliases.setdefault(site_cfg['alias_to'], []).append( site_cfg['domain'] )
+    for domain in os.listdir("/domains"):
+
+        for domain_version in os.listdir(os.path.join("/", "domains", domain)):
+
+            try:
+                domain_version_cfg = yaml.load(open(os.path.join("/domains", domain, domain_version, "project.yaml")))
+            except IOError:
+                continue
             else:
-                sites.append(site_cfg)
+                print domain_version_cfg['domain'], domain_version_cfg.get('alias_to'), domain_version
+                if 'alias_to' in domain_version_cfg:
+                    aliases.setdefault(domain_version_cfg['alias_to'], []).append( domain_version_cfg['domain'] )
+                else:
+                    sites.append(domain_version_cfg)
 
     sites.sort(key=lambda site: site.get('default', 'no') == 'no')
     print "aliases", aliases
