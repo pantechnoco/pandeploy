@@ -33,14 +33,19 @@ def target_dir(path='', version=None, domain=None):
 
     path: a relative path within the domain's directory
     version: the specific version of a domain to find the directory for,
-        or None if the path is to the public domain
+        or None if the current version should be used,
+        or "public" if the public domain directory should be used.
     domain: the name of the domain without version
     """
 
-    if version is None:
-        domain = domain or env.domain
+    if version == 'public':
+        domain = env.domain
+
     else:
-        domain = '.v.'.join((version, domain or env.original_domain))
+        if version is None:
+            version = project_config["version"]
+        domain = '.v.'.join((version, domain or env.domain))
+
     return os.path.join('/domains/', domain, path)
 
 # Configuration loading
@@ -56,7 +61,7 @@ else:
 
 env.user = project_config['user']
 env.hosts = project_config['hosts']
-env.original_domain = project_config['domain']
+env.domain = project_config['domain']
 
 # Exposed developer commands
 
@@ -73,14 +78,15 @@ def clean_all():
     local("rm -f %s/manage.py" % (env.main_library,))
 
 def domain(d, version=None):
+    env.domain = d
     if version:
-        env.domain = "%s.v.%s" % (version, d)
+        env.version_domain = "%s.v.%s" % (version, d)
     else:
-        env.domain = d
+        env.version_domain = d
     project_config["domain"] = env.domain
+    project_config["version_domain"] = env.version_domain
 
      # Change other things that depend on domain
-    env.domain_path = target_dir()
     env.main_library = project_config['project_library']
 
     build_project_version_yaml()
@@ -107,10 +113,10 @@ def build_wsgi():
 
 def build_project_version_yaml():
     reverted = dict(project_config)
-    reverted['domain'] = env.original_domain
+    reverted['domain'] = env.domain
     yaml.dump(reverted, open("project_version.yaml", "w"))
     original = open("project_version.yaml").read()
-    this_version = original.replace(env.original_domain, env.domain)
+    this_version = original.replace(env.domain, env.version_domain)
     open("project_version.yaml", "w").write(this_version)
 
 def deploy():
@@ -122,7 +128,7 @@ def deploy():
     clean_all()
     build()
 
-    current_domain = "%s.v.%s" % (active_version(), env.original_domain)
+    current_domain = "%s.v.%s" % (active_version(), env.domain)
 
     # If this version has never been deployed to this machine before,
     # and a previous version exists on it,
@@ -161,13 +167,13 @@ def purge(domain):
     run('rm -fr ' + target_dir(domain=domain))
 
 def purge_old():
-    run('find /domains -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.original_domain, active_version()))
+    run('find /domains -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.domain, active_version()))
 
 def alias_version(version):
     if version == "current":
         version = project_config["version"]
-    version_domain = "%s.v.%s" % (version, env.original_domain)
-    alias(env.original_domain, version_domain)
+    version_domain = "%s.v.%s" % (version, env.domain)
+    alias(env.domain, version_domain)
 
 def alias(from_domain, to_domain):
     run("mkdir -p " + target_dir(domain=from_domain))
@@ -190,7 +196,7 @@ def test(verbose=False):
 
 def active_version():
     try:
-        get(os.path.join("/", "domains", env.original_domain, "project.yaml"), "/tmp/current.yaml")
+        get(os.path.join("/", "domains", env.domain, "project.yaml"), "/tmp/current.yaml")
     except:
         return
     else:
