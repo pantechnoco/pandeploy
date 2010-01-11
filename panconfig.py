@@ -26,17 +26,16 @@ def main():
             except IOError:
                 continue
             else:
-                print domain_version_cfg['domain'], domain_version_cfg.get('alias_to'), domain_version
                 if 'alias_to' in domain_version_cfg:
-                    aliases.setdefault(domain_version_cfg['alias_to'], []).append( domain_version_cfg['domain'] )
+                    aliases.setdefault(domain_version_cfg['alias_to'], []).append( domain_version if domain_version != 'public' else domain )
                 else:
                     sites.append(domain_version_cfg)
 
     sites.sort(key=lambda site: site.get('default', 'no') == 'no')
-    print "aliases", aliases
     for site in sites:
-        if site['domain'] in aliases:
-            site['domain_aliases'] = aliases[site['domain']]
+        domain_version = '.v.'.join((site['version'], site['domain']))
+        if domain_version in aliases:
+            site['domain_aliases'] = aliases[domain_version]
 
     httpd_conf = render_path("/etc/apache2/httpd.conf.template", sites=sites, test="foobarbaz")
     open("/etc/apache2/httpd.conf", 'w').write(httpd_conf)

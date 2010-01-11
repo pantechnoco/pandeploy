@@ -206,7 +206,7 @@ def alias(from_domain, to_domain):
     domain(from_domain)
     yaml.dump(project_config, open("project_version.yaml", "w"))
 
-    write_deploy_cfg(target)
+    write_deploy_cfg(os.path.join(target, "project.yaml"))
 
 def write_deploy_cfg(to_path=None):
     put("project_version.yaml", to_path or target_dir("project.yaml"))
