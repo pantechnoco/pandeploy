@@ -40,7 +40,7 @@ def target_dir(path='', version=None, domain=None):
 
     if version == 'public':
         domain = env.domain
-        return os.path.join('/domains/', domain, 'public')
+        return os.path.join('/domains/', domain, 'public', path)
 
     else:
         if version is None:
