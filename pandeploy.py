@@ -199,15 +199,17 @@ def alias_version(version):
     alias(env.domain, version_domain)
 
 def alias(from_domain, to_domain):
-    run("mkdir -p " + target_dir(domain=from_domain))
+    target = target_dir(domain=from_domain, version=None if '.v.' in from_domain else 'public')
+
+    run("mkdir -p " + target)
     project_config["alias_to"] = to_domain
     domain(from_domain)
     yaml.dump(project_config, open("project_version.yaml", "w"))
 
-    write_deploy_cfg()
+    write_deploy_cfg(target)
 
-def write_deploy_cfg():
-    put("project_version.yaml", target_dir("project.yaml"))
+def write_deploy_cfg(to_path=None):
+    put("project_version.yaml", to_path or target_dir("project.yaml"))
 
     update_system()
 
