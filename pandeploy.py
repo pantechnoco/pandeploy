@@ -29,6 +29,14 @@ def _init_d(service, command):
     run("/etc/init.d/%s %s" % (service, command))
 
 def target_dir(path='', version=None, domain=None):
+    """Produce a path within a domain on the host.
+
+    path: a relative path within the domain's directory
+    version: the specific version of a domain to find the directory for,
+        or None if the path is to the public domain
+    domain: the name of the domain without version
+    """
+
     if version is None:
         domain = domain or env.domain
     else:
