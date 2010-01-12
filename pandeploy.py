@@ -1,10 +1,24 @@
 from __future__ import with_statement
-__all__ = ['clean', 'clean_all', 'deploy', 'domain', 'update_system', 'build', 'alias', 'alias_version', 'purge_old', 'purge', 'test']
+__all__ = [
+    'clean',
+    'clean_all',
+    'deploy',
+    'domain',
+    'update_system',
+    'build',
+    'alias',
+    'alias_version',
+    'purge_old',
+    'purge',
+    'test',
+    'setup_domain',
+    'allow_deploy', 'deny_deploy'
+]
 
 import os, sys
 
 from fabric.state import env
-from fabric.api import local, run, put, get
+from fabric.api import local, run, sudo, put, get
 from fabric.context_managers import cd
 from fabric.contrib.project import rsync_project
 
@@ -48,6 +62,10 @@ def target_dir(path='', version=None, domain=None):
         version_domain = Domain(domain or env.domain, version).version_domain
 
         return os.path.join('/domains/', domain or env.domain, version_domain, path)
+
+def sync_dirs(local_dir, remote_dir):
+
+    rsync_project(local_dir=local_dir, remote_dir=remote_dir, extra_opts="--no-p -O")
 
 class Domain(object):
 
@@ -141,7 +159,43 @@ def build_wsgi():
 def build_project_version_yaml():
     yaml.dump(project_config, open("project_version.yaml", "w"))
 
+# Server Setup
+
+def _setup_domain_rights(domain):
+    """Configure a user and group to own the domain."""
+
+    sudo("adduser --group --disabled-password --no-create-home --force-badname --system %s" % (domain,))
+    sudo("chown -R %s:%s /domains/%s" % (domain, domain, domain))
+    sudo("chmod -R g+w /domains/%s" % (domain,))
+    sudo("chmod -R g-w /domains/%s/public" % (domain,))
+
+def _setup_domain_dir(domain):
+    sudo("mkdir -p /domains/%s/" % (domain,))
+
+def setup_domain(domain=None):
+    """Configures various expected things for a domain before deployment."""
+
+    domain = domain or env.domain
+
+    _setup_domain_dir(domain)
+    _setup_domain_rights(domain)
+
+def allow_deploy(user, domain=None):
+    domain = domain or env.domain
+    setup_domain(domain)
+
+    sudo("adduser %s %s" % (user, domain))
+
+def deny_deploy(user, domain=None):
+    domain = domain or env.domain
+    setup_domain(domain)
+
+    sudo("deluser %s %s" % (user, domain))
+
+# Deployment
+
 def deploy():
+
     if project_config["version"] == active_version():
         print "-------------------------------------"
         print "Refusing to deploy to active version."
@@ -167,14 +221,14 @@ def deploy():
         if os.path.exists(directory):
 
             run("mkdir -p " + target_dir(directory))
-            rsync_project(local_dir=directory, remote_dir=target_dir())
+            sync_dirs(local_dir=directory, remote_dir=target_dir())
 
-    rsync_project(local_dir=env.main_library, remote_dir=target_dir('libs'))
+    sync_dirs(local_dir=env.main_library, remote_dir=target_dir('libs'))
 
     for local_dir in ('apps', 'libs'):
         if os.path.exists(local_dir):
             for pkg_path in os.listdir(local_dir):
-                rsync_project(
+                sync_dirs(
                     local_dir=os.path.join(local_dir, pkg_path),
                     remote_dir=target_dir('libs'))
 
@@ -198,15 +252,30 @@ def alias_version(version):
     version_domain = Domain(env.domain, version).version_domain
     alias(env.domain, version_domain)
 
+def as_user(user):
+    def D(f):
+        def _(*args, **kwargs):
+            orig_user = env.user
+            env.user = user
+            try:
+                return f(*args, **kwargs)
+            finally:
+                env.user = orig_user
+        return _
+    return D
+
 def alias(from_domain, to_domain):
-    target = target_dir(domain=from_domain, version=None if '.v.' in from_domain else 'public')
+    @apply
+    @as_user(from_domain)
+    def do_alias():
+        target = target_dir(domain=from_domain, version=None if '.v.' in from_domain else 'public')
 
-    run("mkdir -p " + target)
-    project_config["alias_to"] = to_domain
-    domain(from_domain)
-    yaml.dump(project_config, open("project_version.yaml", "w"))
+        run("mkdir -p " + target)
+        project_config["alias_to"] = to_domain
+        domain(from_domain)
+        yaml.dump(project_config, open("project_version.yaml", "w"))
 
-    write_deploy_cfg(os.path.join(target, "project.yaml"))
+        write_deploy_cfg(os.path.join(target, "project.yaml"))
 
 def write_deploy_cfg(to_path=None):
     put("project_version.yaml", to_path or target_dir("project.yaml"))
@@ -229,13 +298,18 @@ def active_version():
         return current["version"]
 
 def update_system():
-    put(os.path.join(os.path.dirname(__file__), "panconfig.py"), os.path.join("/", "usr", "bin", "panconfig.py"))
-    put(os.path.join(os.path.dirname(__file__), "djangorender.py"), os.path.join("/", "usr", "lib", "python2.6", "dist-packages", "djangorender.py"))
-    put(os.path.join(os.path.dirname(__file__), "httpd.conf.template"), os.path.join("/", "etc", "apache2"))
+    user = env.user
+    env.user = "root"
+    try:
+        put(os.path.join(os.path.dirname(__file__), "panconfig.py"), os.path.join("/", "usr", "bin", "panconfig.py"))
+        put(os.path.join(os.path.dirname(__file__), "djangorender.py"), os.path.join("/", "usr", "lib", "python2.6", "dist-packages", "djangorender.py"))
+        put(os.path.join(os.path.dirname(__file__), "httpd.conf.template"), os.path.join("/", "etc", "apache2"))
 
-    run("panconfig.py")
+        run("panconfig.py")
 
-    _init_d('apache2', 'reload')
+        _init_d('apache2', 'reload')
+    finally:
+        env.user = user
 
 # Always run once with test domain first
 domain(project_config["domain"], version=project_config["version"])
