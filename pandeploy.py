@@ -12,7 +12,8 @@ __all__ = [
     'purge',
     'test',
     'setup_domain',
-    'allow_deploy', 'deny_deploy'
+    'allow_deploy', 'deny_deploy',
+    'allow_alias', 'deny_alias',
 ]
 
 import os, sys
@@ -165,6 +166,7 @@ def _setup_domain_rights(domain):
     """Configure a user and group to own the domain."""
 
     sudo("adduser --group --disabled-password --force-badname --system %s" % (domain,))
+    sudo("adduser --group --disabled-password --force-badname --system %s-alias" % (domain,))
     sudo("mkdir -p /home/%s/.ssh/" % (domain,))
     sudo("touch /home/%s/.ssh/authorized_keys" % (domain,))
     sudo("chown -R %s:%s /domains/%s" % (domain, domain, domain))
@@ -174,6 +176,11 @@ def _setup_domain_rights(domain):
 def _setup_domain_dir(domain):
     sudo("mkdir -p /domains/%s/public" % (domain,))
 
+def _setup_domain_keys(domain):
+    # This finds all users in the domain's group and populates the domain with their keys
+    sudo("rm -f /home/%s/.ssh/authorized_keys" % (domain,))
+    sudo("getent group|grep '^%s-alias'|cut -d: -f4|tr -d '\n'|xargs -L 1 -d , -I {} bash -c 'if [ \"{}\" != \" \" ]; then if [ \"{}\" != \"%s\" ]; then cat /home/{}/.ssh/authorized_keys; fi; fi' >> /home/%s/.ssh/authorized_keys" % (domain, domain, domain))
+
 def setup_domain(domain=None):
     """Configures various expected things for a domain before deployment."""
 
@@ -181,21 +188,31 @@ def setup_domain(domain=None):
 
     _setup_domain_dir(domain)
     _setup_domain_rights(domain)
+    _setup_domain_keys(domain)
 
 def allow_deploy(user, domain=None):
     domain = domain or env.domain
     setup_domain(domain)
 
-    print "setting up user", user, "for domain", domain
     sudo("adduser %s %s" % (user, domain))
-    sudo("rm -f /home/%s/.ssh/authorized_keys" % (domain,))
-    sudo("getent group|grep '^%s'|cut -d: -f4|tr -d '\n'|xargs -L 1 -d , -I {} bash -c 'if [ \"{}\" != \" \" ]; then if [ \"{}\" != \"%s\" ]; then cat /home/{}/.ssh/authorized_keys; fi; fi' >> /home/%s/.ssh/authorized_keys" % (domain, domain, domain))
 
 def deny_deploy(user, domain=None):
     domain = domain or env.domain
     setup_domain(domain)
 
     sudo("deluser %s %s" % (user, domain))
+
+def allow_alias(user, domain=None):
+    domain = domain or env.domain
+
+    sudo("adduser %s %s-alias" % (user, domain))
+    setup_domain(domain)
+
+def deny_alias(user, domain=None):
+    domain = domain or env.domain
+
+    sudo("deluser %s %s-alias" % (user, domain))
+    setup_domain(domain)
 
 # Deployment
 
