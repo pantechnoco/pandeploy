@@ -17,6 +17,7 @@ __all__ = [
 ]
 
 import os, sys
+import copy
 
 from fabric.state import env
 from fabric.api import local, run, sudo, put, get
@@ -39,6 +40,11 @@ def _dict_deep_update(target, source):
                 _dict_deep_update(target[key], value)
                 continue
         target[key] = value
+
+def _dict_deep_combine(A, B):
+    A = copy.deepcopy(A)
+    _dict_deep_update(A, B)
+    return A
 
 def _init_d(service, command):
     run("/etc/init.d/%s %s" % (service, command))
@@ -92,14 +98,16 @@ class Domain(object):
 
 # Configuration loading
 
-project_config = yaml.load(open("project.yaml"))
-try:
-    extends = yaml.load(open("project_extends.yaml"))
-except IOError:
-    pass
-else:
-    _dict_deep_update(extends, project_config)
-    project_config = extends
+def load_and_merge(base_path, extended_path):
+    """Loads YAML from base_path and extended_path and updates the base with
+    the extended configuration. The result is a dict.
+    """
+
+    ext_config = yaml.load(open(extended_path))
+    base_config = yaml.load(open(base_path))
+    return _dict_deep_combine(base_config, ext_config)
+
+project_config = load_and_merge("project_extends.yaml", "project.yaml")
 
 env.user = project_config['user']
 env.hosts = project_config['hosts']
