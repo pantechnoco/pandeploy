@@ -164,13 +164,15 @@ def build_project_version_yaml():
 def _setup_domain_rights(domain):
     """Configure a user and group to own the domain."""
 
-    sudo("adduser --group --disabled-password --no-create-home --force-badname --system %s" % (domain,))
+    sudo("adduser --group --disabled-password --force-badname --system %s" % (domain,))
+    sudo("mkdir -p /home/%s/.ssh/" % (domain,))
+    sudo("touch /home/%s/.ssh/authorized_keys" % (domain,))
     sudo("chown -R %s:%s /domains/%s" % (domain, domain, domain))
     sudo("chmod -R g+w /domains/%s" % (domain,))
     sudo("chmod -R g-w /domains/%s/public" % (domain,))
 
 def _setup_domain_dir(domain):
-    sudo("mkdir -p /domains/%s/" % (domain,))
+    sudo("mkdir -p /domains/%s/public" % (domain,))
 
 def setup_domain(domain=None):
     """Configures various expected things for a domain before deployment."""
@@ -184,7 +186,10 @@ def allow_deploy(user, domain=None):
     domain = domain or env.domain
     setup_domain(domain)
 
+    print "setting up user", user, "for domain", domain
     sudo("adduser %s %s" % (user, domain))
+    sudo("rm -f /home/%s/.ssh/authorized_keys" % (domain,))
+    sudo("getent group|grep '^%s'|cut -d: -f4|tr -d '\n'|xargs -L 1 -d , -I {} bash -c 'if [ \"{}\" != \" \" ]; then if [ \"{}\" != \"%s\" ]; then cat /home/{}/.ssh/authorized_keys; fi; fi' >> /home/%s/.ssh/authorized_keys" % (domain, domain, domain))
 
 def deny_deploy(user, domain=None):
     domain = domain or env.domain
