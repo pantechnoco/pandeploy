@@ -70,9 +70,9 @@ def target_dir(path='', version=None, domain=None):
 
         return os.path.join('/domains/', domain or env.domain, version_domain, path)
 
-def sync_dirs(local_dir, remote_dir):
+def sync_dirs(local_dir, remote_dir, **kwargs):
 
-    rsync_project(local_dir=local_dir, remote_dir=remote_dir, extra_opts="--no-p -O")
+    rsync_project(local_dir=local_dir, remote_dir=remote_dir, extra_opts="--no-p -O", **kwargs)
 
 class Domain(object):
 
@@ -151,13 +151,20 @@ def build():
     build_wsgi()
     build_project_version_yaml()
 
-def _build_from_template(src, dest):
+def _build_from_template(src, dest, **extra_settings):
+    conf = copy.deepcopy(project_config)
+    conf.update(extra_settings)
+
     settings_template_path = os.path.join(os.path.dirname(__file__), src)
-    settings_code = djangorender.render_path(settings_template_path, **project_config)
+    settings_code = djangorender.render_path(settings_template_path, **conf)
     open(dest, 'w').write(settings_code)
 
 def build_settings():
-    _build_from_template("settings.template", os.path.join(env.main_library, "settings.py"))
+    # Build local settings
+    _build_from_template("settings.template", os.path.join(env.main_library, "settings.py"), project_path='.')
+    # Build remote settings
+    _build_from_template("settings.template", os.path.join(env.main_library, "remote_settings.py"),
+        project_path=os.path.join('/', 'domains', env.domain, '%s.v.%s' % (project_config['version'], env.domain)))
 
 def build_manage():
     _build_from_template("manage.py.template", os.path.join(env.main_library, "manage.py"))
@@ -253,7 +260,8 @@ def deploy():
             run("mkdir -p " + target_dir(directory))
             sync_dirs(local_dir=directory, remote_dir=target_dir())
 
-    sync_dirs(local_dir=env.main_library, remote_dir=target_dir('libs'))
+    sync_dirs(local_dir=env.main_library, remote_dir=target_dir('libs'), exclude="settings.py")
+    put(os.path.join(env.main_library, "remote_settings.py"), os.path.join('libs', env.main_library, 'settings.py'))
 
     for local_dir in ('apps', 'libs'):
         if os.path.exists(local_dir):
