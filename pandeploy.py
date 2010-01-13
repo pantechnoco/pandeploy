@@ -96,6 +96,32 @@ class Domain(object):
         else:
             return cls(domain_string)
 
+class _NoWarning(object):
+    """Used to suppress warning messages when commands are OK to have non-0 exit.
+
+    Usage:
+
+        with no_warning:
+            run("adduser username")
+    """
+
+    def __enter__(self, *args):
+        from fabric import operations
+
+        self.orig_warn = operations.warn
+        self.orig_warn_flag = env.warn_only
+
+        operations.warn = lambda x: True
+        env.warn_only = True
+
+    def __exit__(self, *args):
+        from fabric import operations
+
+        env.warn_only = self.orig_warn_flag
+        operations.warn = self.orig_warn
+
+no_warning = _NoWarning()
+
 # Configuration loading
 
 def load_and_merge(base_path, extended_path):
@@ -180,8 +206,14 @@ def build_project_version_yaml():
 def _setup_domain_rights(domain):
     """Configure a user and group to own the domain."""
 
-    sudo("adduser --group --disabled-password --force-badname --system %s" % (domain,))
-    sudo("adduser --group --disabled-password --force-badname --system %s-alias" % (domain,))
+    with no_warning:
+        sudo("adduser --group --disabled-password --force-badname %s" % (domain,))
+        sudo("adduser --group --disabled-password --force-badname %s-alias" % (domain,))
+
+    # Updating previous domain users
+    sudo("usermod --shell /bin/bash %s" % (domain,))
+    sudo("usermod --shell /bin/bash %s-alias" % (domain,))
+
     sudo("mkdir -p /home/%s/.ssh/" % (domain,))
     sudo("touch /home/%s/.ssh/authorized_keys" % (domain,))
     sudo("chown -R %s:%s /domains/%s" % (domain, domain, domain))
@@ -261,7 +293,7 @@ def deploy():
             sync_dirs(local_dir=directory, remote_dir=target_dir())
 
     sync_dirs(local_dir=env.main_library, remote_dir=target_dir('libs'), exclude="settings.py")
-    put(os.path.join(env.main_library, "remote_settings.py"), os.path.join('libs', env.main_library, 'settings.py'))
+    sync_dirs(local_dir=os.path.join(env.main_library, "remote_settings.py"), remote_dir=target_dir(os.path.join('libs', env.main_library, 'settings.py')))
 
     for local_dir in ('apps', 'libs'):
         if os.path.exists(local_dir):
@@ -273,7 +305,7 @@ def deploy():
     run("find . -name '*.py[co]' -exec rm {} \;")
     with cd(os.path.join(target_dir())):
         run("python libs/%s/manage.py syncdb --noinput" % (env.main_library,))
-    put("root.wsgi", target_dir("root.wsgi"))
+    sync_dirs(local_dir="root.wsgi", remote_dir=target_dir("root.wsgi"))
 
     write_deploy_cfg()
 
@@ -308,6 +340,7 @@ def alias(from_domain, to_domain):
     def do_alias():
         target = target_dir(domain=from_domain, version=None if '.v.' in from_domain else 'public')
 
+        run("whoami")
         run("mkdir -p " + target)
         project_config["alias_to"] = to_domain
         domain(from_domain)
@@ -316,7 +349,7 @@ def alias(from_domain, to_domain):
         write_deploy_cfg(os.path.join(target, "project.yaml"))
 
 def write_deploy_cfg(to_path=None):
-    put("project_version.yaml", to_path or target_dir("project.yaml"))
+    sync_dirs(local_dir="project_version.yaml", remote_dir=to_path or target_dir("project.yaml"))
 
     update_system()
 
