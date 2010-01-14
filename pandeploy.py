@@ -313,7 +313,7 @@ def purge(domain, version):
     run('rm -fr ' + target_dir(domain=domain, version=version))
 
 def purge_old():
-    run('find /domains/%s -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.domain, env.domain, active_version()))
+    sudo('find /domains/%s -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.domain, env.domain, active_version()))
 
 def alias_version(version):
     if version == "current":
