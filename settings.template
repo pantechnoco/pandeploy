@@ -2,7 +2,9 @@
 
 # Django settings for {{ project_library }} project.
 import os
+import sys
 import django
+sys.path.append('../apps/')
 django_path = os.path.dirname(django.__file__)
 
 DEBUG = {{ DEBUG|default:"False" }}
