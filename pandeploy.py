@@ -3,6 +3,7 @@ __all__ = [
     'clean',
     'clean_all',
     'deploy',
+    'install_requirements',
     'domain',
     'update_system',
     'build',
@@ -18,6 +19,7 @@ __all__ = [
 
 import os, sys
 import copy
+import hashlib
 
 from fabric.state import env
 from fabric.api import local, run, sudo, put, get
@@ -72,11 +74,13 @@ def target_dir(path='', version=None, domain=None):
 
 def sync_dirs(local_dir, remote_dir, **kwargs):
 
-    rsync_project(local_dir=local_dir, remote_dir=remote_dir, extra_opts="--no-p -O", **kwargs)
+    rsync_project(local_dir=local_dir, remote_dir=remote_dir, extra_opts="--no-p -Ok", **kwargs)
 
 class Domain(object):
 
-    def __init__(self, domain, version=None):
+    shorthash_length = 20
+
+    def __init__(self, domain=None, version=None):
         self.domain = domain
         self.version = version
 
@@ -95,6 +99,18 @@ class Domain(object):
             return cls(*domain_string.split('.v.'))
         else:
             return cls(domain_string)
+
+    @property
+    def shorthash(self):
+        return hashlib.sha1(self.domain).hexdigest()[:self.shorthash_length]
+
+    @property
+    def domain_group(self):
+        return "DD%s" % (self.shorthash,)
+
+    @property
+    def domain_alias_group(self):
+        return "DA%s" % (self.shorthash,)
 
 class _NoWarning(object):
     """Used to suppress warning messages when commands are OK to have non-0 exit.
@@ -206,17 +222,22 @@ def build_project_version_yaml():
 def _setup_domain_rights(domain):
     """Configure a user and group to own the domain."""
 
+    # Names have to stay at 32 characters or less, so
+    # we take each domain and map it to a hash.
+    domain_group = Domain(domain).domain_group
+    domain_alias_group = Domain(domain).domain_alias_group
+
     with no_warning:
-        sudo("adduser --group --disabled-password --force-badname %s" % (domain,))
-        sudo("adduser --group --disabled-password --force-badname %s-alias" % (domain,))
+        sudo("adduser --group --system --disabled-password %s" % (domain_group,))
+        sudo("adduser --group --system --disabled-password %s" % (domain_alias_group,))
 
     # Updating previous domain users
-    sudo("usermod --shell /bin/bash %s" % (domain,))
-    sudo("usermod --shell /bin/bash %s-alias" % (domain,))
+    sudo("usermod --shell /bin/bash %s" % (Domain(domain).domain_group,))
+    sudo("usermod --shell /bin/bash %s" % (Domain(domain).domain_alias_group,))
 
     sudo("mkdir -p /home/%s/.ssh/" % (domain,))
     sudo("touch /home/%s/.ssh/authorized_keys" % (domain,))
-    sudo("chown -R %s:%s /domains/%s" % (domain, domain, domain))
+    sudo("chown -R %s:%s /domains/%s" % (domain_group, domain_group, domain))
     sudo("chmod -R g+w /domains/%s" % (domain,))
     sudo("chmod -R g-w /domains/%s/public" % (domain,))
 
@@ -226,7 +247,7 @@ def _setup_domain_dir(domain):
 def _setup_domain_keys(domain):
     # This finds all users in the domain's group and populates the domain with their keys
     sudo("rm -f /home/%s/.ssh/authorized_keys" % (domain,))
-    sudo("getent group|grep '^%s-alias'|cut -d: -f4|tr -d '\n'|xargs -L 1 -d , -I {} bash -c 'if [ \"{}\" != \" \" ]; then if [ \"{}\" != \"%s\" ]; then cat /home/{}/.ssh/authorized_keys; fi; fi' >> /home/%s/.ssh/authorized_keys" % (domain, domain, domain))
+    sudo("getent group|grep '^%s'|cut -d: -f4|tr -d '\n'|xargs -L 1 -d , -I {} bash -c 'if [ \"{}\" != \" \" ]; then if [ \"{}\" != \"%s\" ]; then cat /home/{}/.ssh/authorized_keys; fi; fi' >> /home/%s/.ssh/authorized_keys" % (Domain(domain).domain_alias_group, domain, domain))
 
 def setup_domain(domain=None):
     """Configures various expected things for a domain before deployment."""
@@ -241,29 +262,31 @@ def allow_deploy(user, domain=None):
     domain = domain or env.domain
     setup_domain(domain)
 
-    sudo("adduser %s %s" % (user, domain))
+    sudo("adduser %s %s" % (user, Domain(domain).domain_group))
 
 def deny_deploy(user, domain=None):
     domain = domain or env.domain
     setup_domain(domain)
 
-    sudo("deluser %s %s" % (user, domain))
+    sudo("deluser %s %s" % (user, Domain(domain).domain_group))
 
 def allow_alias(user, domain=None):
     domain = domain or env.domain
 
-    sudo("adduser %s %s-alias" % (user, domain))
+    sudo("adduser %s %s" % (user, Domain(domain).domain_alias_group))
     setup_domain(domain)
 
 def deny_alias(user, domain=None):
     domain = domain or env.domain
 
-    sudo("deluser %s %s-alias" % (user, domain))
+    sudo("deluser %s %s" % (user, Domain(domain).domain_alias_group))
     setup_domain(domain)
 
 # Deployment
 
 def deploy():
+
+    setup_domain()
 
     if project_config["version"] == active_version():
         print "-------------------------------------"
@@ -278,6 +301,7 @@ def deploy():
     # If this version has never been deployed to this machine before,
     # and a previous version exists on it,
     # copy the previous version as the base of the new.
+
     run("if [ -d %(new_version_path)s ]; then echo; else if [ -d %(current_version_path)s ]; \
         then cp -R %(current_version_path)s %(new_version_path)s; fi; fi" %
 
@@ -298,16 +322,29 @@ def deploy():
     for local_dir in ('apps', 'libs'):
         if os.path.exists(local_dir):
             for pkg_path in os.listdir(local_dir):
-                sync_dirs(
-                    local_dir=os.path.join(local_dir, pkg_path),
-                    remote_dir=target_dir('libs'))
+                local_path = os.path.join(local_dir, pkg_path)
+                if os.path.isdir(local_path):
+                    sync_dirs(
+                        local_dir=local_path,
+                        remote_dir=target_dir('libs'))
+                else:
+                    put(local_path, target_dir(os.path.join('libs', pkg_path)))
 
     run("find . -name '*.py[co]' -exec rm {} \;")
     with cd(os.path.join(target_dir())):
         run("python libs/%s/manage.py syncdb --noinput" % (env.main_library,))
     sync_dirs(local_dir="root.wsgi", remote_dir=target_dir("root.wsgi"))
 
+    install_requirements()
+
     write_deploy_cfg()
+
+def install_requirements():
+    # Install requirements.txt
+    if os.path.exists("requirements.txt"):
+        sync_dirs(local_dir="requirements.txt", remote_dir=target_dir("requirements.txt"))
+        sudo('virtualenv --no-site-packages %s' % (target_dir('ve')))
+        run('pip install -E %s -r %s' % (target_dir('ve'), target_dir('requirements.txt'),))
 
 def purge(domain, version):
     run('rm -fr ' + target_dir(domain=domain, version=version))
