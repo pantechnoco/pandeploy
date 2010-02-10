@@ -32,7 +32,7 @@ NameVirtualHost 74.207.234.177:80
 
         {% if site.wsgi %}
             WSGIProcessGroup {{ site.domain }}-{{ site.version }}
-            WSGIDaemonProcess {{ site.domain }}-{{ site.version }} processes={{ site.wsgi.processes|default:"1" }} threads=1 display-name=%{GROUP}
+            WSGIDaemonProcess {{ site.domain }}-{{ site.version }} processes={{ site.wsgi.processes|default:"1" }} threads=1 display-name=%{GROUP} python-path=/domains/{{ site.domain }}/{{ site.version }}.v.{{ site.domain }}/ve/lib/python2.6/site-packages
 
             WSGIScriptAlias / /domains/{{ site.domain }}/{{ site.version }}.v.{{ site.domain }}/root.wsgi
         {% endif %}
