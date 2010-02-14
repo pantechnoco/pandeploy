@@ -2,7 +2,9 @@
 
 # Django settings for {{ project_library }} project.
 import os
+import sys
 import django
+sys.path.append('../apps/')
 django_path = os.path.dirname(django.__file__)
 
 DEBUG = {{ DEBUG|default:"False" }}
@@ -107,6 +109,7 @@ TEMPLATE_DIRS = (
     # Don't forget to use absolute paths, not relative paths.
     os.path.abspath(os.path.join(django_path, "contrib", "admin", "templates")),
     os.path.join(os.path.dirname(__file__), '..', '..', 'templates'),
+    os.path.join(os.path.dirname(__file__), '..', 'templates'),
     {% if not template_dirs %}
         '{{ project_path }}/templates/',
     {% endif %}
