@@ -33,9 +33,9 @@ import yaml
 # Utility functions
 
 def _dict_deep_update(target, source, skip):
+    for key in skip:
+        del target[key]
     for key, value in source.iteritems():
-        if key in skip:
-            continue
         if key in target:
             if isinstance(value, list):
                 target[key] = target[key] + value
@@ -350,7 +350,7 @@ def deploy():
 
     install_requirements()
 
-    write_deploy_cfg()
+    update_system()
 
     setup_domain()
 
@@ -400,12 +400,7 @@ def alias(from_domain, to_domain):
         domain(from_domain)
         yaml.dump(project_config, open("project_version.yaml", "w"))
 
-        write_deploy_cfg(os.path.join(target, "project.yaml"))
-
-def write_deploy_cfg(to_path=None):
-    sync_dirs(local_dir="project_version.yaml", remote_dir=to_path or target_dir("project.yaml"))
-
-    update_system()
+        update_system(os.path.join(target, "project.yaml"))
 
 def test(verbose=False):
     run(("cd %(domain_path)s && python libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) %
@@ -422,7 +417,9 @@ def active_version():
         current = yaml.load(open("/tmp/current.yaml"))
         return current["version"]
 
-def update_system():
+def update_system(to_path=None):
+    sync_dirs(local_dir="project_version.yaml", remote_dir=to_path or target_dir("project.yaml"))
+
     user = env.user
     env.user = "root"
     try:
