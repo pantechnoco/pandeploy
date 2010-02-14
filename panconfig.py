@@ -31,7 +31,7 @@ def main():
                 else:
                     sites.append(domain_version_cfg)
 
-    sites.sort(key=lambda site: site.get('default', 'no') == 'no')
+    sites.sort(key=lambda site: site.get('apache_order', 0), reverse=True)
     for site in sites:
         domain_version = '.v.'.join((site['version'], site['domain']))
         if domain_version in aliases:

@@ -21,7 +21,11 @@ MANAGERS = ADMINS
 DATABASE_ENGINE = '{{ database.engine }}'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
 
 {% if database.engine = 'sqlite3' %}
+{% if remote_settings %}
+DATABASE_NAME = '{{ project_path }}/../db.sqlite'             # Or path to database file if using sqlite3.
+{% else %}
 DATABASE_NAME = '{{ project_path }}/db.sqlite'             # Or path to database file if using sqlite3.
+{% endif %}
 {% endif %}
 
 DATABASE_USER = ''             # Not used with sqlite3.

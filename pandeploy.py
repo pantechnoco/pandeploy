@@ -32,20 +32,22 @@ import yaml
 
 # Utility functions
 
-def _dict_deep_update(target, source):
+def _dict_deep_update(target, source, skip):
     for key, value in source.iteritems():
+        if key in skip:
+            continue
         if key in target:
             if isinstance(value, list):
                 target[key] = target[key] + value
                 continue
             elif isinstance(value, dict):
-                _dict_deep_update(target[key], value)
+                _dict_deep_update(target[key], value, skip)
                 continue
         target[key] = value
 
-def _dict_deep_combine(A, B):
+def _dict_deep_combine(A, B, skip):
     A = copy.deepcopy(A)
-    _dict_deep_update(A, B)
+    _dict_deep_update(A, B, skip)
     return A
 
 def _init_d(service, command):
@@ -74,7 +76,7 @@ def target_dir(path='', version=None, domain=None):
 
 def sync_dirs(local_dir, remote_dir, **kwargs):
 
-    rsync_project(local_dir=local_dir, remote_dir=remote_dir, extra_opts="--no-p -Ok", **kwargs)
+    rsync_project(local_dir=local_dir, remote_dir=remote_dir, extra_opts="--no-p -OkL", **kwargs)
 
 class Domain(object):
 
@@ -146,8 +148,12 @@ def load_and_merge(base_path, extended_path):
     """
 
     ext_config = yaml.load(open(extended_path))
-    base_config = yaml.load(open(base_path))
-    return _dict_deep_combine(base_config, ext_config)
+    try:
+        base_config = yaml.load(open(base_path))
+    except IOError:
+        base_config = {}
+
+    return _dict_deep_combine(base_config, ext_config, skip=('apache_order',))
 
 project_config = load_and_merge("project_extends.yaml", "project.yaml")
 
@@ -203,9 +209,9 @@ def _build_from_template(src, dest, **extra_settings):
 
 def build_settings():
     # Build local settings
-    _build_from_template("settings.template", os.path.join(env.main_library, "settings.py"), project_path='.')
+    _build_from_template("settings.template", os.path.join(env.main_library, "settings.py"), project_path='.', local_settings=True)
     # Build remote settings
-    _build_from_template("settings.template", os.path.join(env.main_library, "remote_settings.py"),
+    _build_from_template("settings.template", os.path.join(env.main_library, "remote_settings.py"), remote_settings=True,
         project_path=os.path.join('/', 'domains', env.domain, '%s.v.%s' % (project_config['version'], env.domain)))
 
 def build_manage():
@@ -238,16 +244,21 @@ def _setup_domain_rights(domain):
     sudo("mkdir -p /home/%s/.ssh/" % (domain,))
     sudo("touch /home/%s/.ssh/authorized_keys" % (domain,))
     sudo("chown -R %s:%s /domains/%s" % (domain_group, domain_group, domain))
+    sudo("chown -R %s:%s /domains/%s/public" % (domain_alias_group, domain_alias_group, domain))
     sudo("chmod -R g+w /domains/%s" % (domain,))
     sudo("chmod -R g-w /domains/%s/public" % (domain,))
+    sudo("mkdir -p /home/%s/.ssh" % (domain_group,))
+    sudo("mkdir -p /home/%s/.ssh" % (domain_alias_group,))
 
 def _setup_domain_dir(domain):
     sudo("mkdir -p /domains/%s/public" % (domain,))
 
 def _setup_domain_keys(domain):
     # This finds all users in the domain's group and populates the domain with their keys
+    domain_alias_group = Domain(domain).domain_alias_group
+
     sudo("rm -f /home/%s/.ssh/authorized_keys" % (domain,))
-    sudo("getent group|grep '^%s'|cut -d: -f4|tr -d '\n'|xargs -L 1 -d , -I {} bash -c 'if [ \"{}\" != \" \" ]; then if [ \"{}\" != \"%s\" ]; then cat /home/{}/.ssh/authorized_keys; fi; fi' >> /home/%s/.ssh/authorized_keys" % (Domain(domain).domain_alias_group, domain, domain))
+    sudo("getent group|grep '^%s'|cut -d: -f4|tr -d '\n'|xargs -L 1 -d , -I {} bash -c 'if [ \"{}\" != \" \" ]; then if [ \"{}\" != \"%s\" ]; then cat /home/{}/.ssh/authorized_keys; fi; fi' >> /home/%s/.ssh/authorized_keys" % (domain_alias_group, domain, domain_alias_group))
 
 def setup_domain(domain=None):
     """Configures various expected things for a domain before deployment."""
@@ -328,6 +339,8 @@ def deploy():
                         local_dir=local_path,
                         remote_dir=target_dir('libs'))
                 else:
+                    # Dunno why permissions are forcing me to do this
+                    run('rm %s' % (target_dir(os.path.join('libs', pkg_path)),))
                     put(local_path, target_dir(os.path.join('libs', pkg_path)))
 
     run("find . -name '*.py[co]' -exec rm {} \;")
@@ -339,6 +352,8 @@ def deploy():
 
     write_deploy_cfg()
 
+    setup_domain()
+
 def install_requirements():
     # Install requirements.txt
     if os.path.exists("requirements.txt"):
@@ -346,7 +361,10 @@ def install_requirements():
         sudo('virtualenv --no-site-packages %s' % (target_dir('ve')))
         run('pip install -E %s -r %s' % (target_dir('ve'), target_dir('requirements.txt'),))
 
-def purge(domain, version):
+def purge(domain, version=None):
+    if version == 'current':
+        version = project_config["version"]
+    assert version != active_version()
     run('rm -fr ' + target_dir(domain=domain, version=version))
 
 def purge_old():
@@ -372,7 +390,7 @@ def as_user(user):
 
 def alias(from_domain, to_domain):
     @apply
-    @as_user(from_domain)
+    @as_user(Domain(from_domain).domain_alias_group)
     def do_alias():
         target = target_dir(domain=from_domain, version=None if '.v.' in from_domain else 'public')
 

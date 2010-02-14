@@ -66,18 +66,19 @@ def main(argv):
             'DEBUG': True,
         }
         if options.extends:
-            cfg['extends'] = os.path.join("..", options.extends, "project.yaml")
+            os.symlink(os.path.join('..', options.extends, 'project.yaml'), os.path.join(project_name, 'project_extends.yaml'))
         yaml.dump(cfg, cfg_file)
         cfg_file.close()
 
         open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi % locals())
 
-        gitignore_template = os.path.join(os.path.dirname(__file__), 'default_gitignore')
+        gitignore_template = os.path.abspath(os.path.join(os.path.dirname(__file__), 'default_gitignore'))
         local("cd %(project_name)s &&\
             python -m djangorender -p %(gitignore_template)s -s project_name=%(project_name)s > .gitignore &&\
             git init && git add . && git commit -m 'initial commit'" % locals())
 
-        local("cd %(project_name)s && fab deploy alias_version:0.1" % locals())
+        username = os.getlogin()
+        local("cd %(project_name)s && fab allow_deploy:%(username)s allow_alias:%(username)s deploy alias_version:0.1" % locals())
  
     return 0
 
