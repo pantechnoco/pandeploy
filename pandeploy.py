@@ -34,7 +34,8 @@ import yaml
 
 def _dict_deep_update(target, source, skip):
     for key in skip:
-        del target[key]
+        if key in target:
+            del target[key]
     for key, value in source.iteritems():
         if key in target:
             if isinstance(value, list):
