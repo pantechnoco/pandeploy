@@ -161,6 +161,7 @@ project_config = load_and_merge("project_extends.yaml", "project.yaml")
 env.user = project_config['user']
 env.hosts = project_config['hosts']
 env.domain = project_config['domain']
+env.python = 'python2.6'
 
 # Exposed developer commands
 
@@ -194,11 +195,13 @@ def domain(d, version=None):
 
     build_project_version_yaml()
 
-def build():
+def build(skip_reqs=False):
     build_settings()
     build_manage()
     build_wsgi()
     build_project_version_yaml()
+    if not skip_reqs:
+        install_requirements(on_local=True)
 
 def _build_from_template(src, dest, **extra_settings):
     conf = copy.deepcopy(project_config)
@@ -209,8 +212,12 @@ def _build_from_template(src, dest, **extra_settings):
     open(dest, 'w').write(settings_code)
 
 def build_settings():
+    try:
+        local_settings_filename = project_config['django']['local_settings']
+    except KeyError:
+        local_settings_filename = 'settings.py'
     # Build local settings
-    _build_from_template("settings.template", os.path.join(env.main_library, "settings.py"), project_path='.', local_settings=True)
+    _build_from_template("settings.template", os.path.join(env.main_library, local_settings_filename), project_path='.', local_settings=True)
     # Build remote settings
     _build_from_template("settings.template", os.path.join(env.main_library, "remote_settings.py"), remote_settings=True,
         project_path=os.path.join('/', 'domains', env.domain, '%s.v.%s' % (project_config['version'], env.domain)))
@@ -250,6 +257,8 @@ def _setup_domain_rights(domain):
     sudo("chmod -R g-w /domains/%s/public" % (domain,))
     sudo("mkdir -p /home/%s/.ssh" % (domain_group,))
     sudo("mkdir -p /home/%s/.ssh" % (domain_alias_group,))
+
+    sudo("addgroup www-data %s" % (domain_group,))
 
 def _setup_domain_dir(domain):
     sudo("mkdir -p /domains/%s/public" % (domain,))
@@ -306,7 +315,7 @@ def deploy():
         return -1
 
     clean_all()
-    build()
+    build(skip_reqs=True)
 
     current_domain = Domain(env.domain, active_version()).version_domain
 
@@ -322,14 +331,21 @@ def deploy():
 
     run("mkdir -p " + target_dir('libs'))
 
-    for directory in ('media', 'data', 'templates'):
+    for directory in ('media', 'data', 'templates', 'externals'):
         if os.path.exists(directory):
 
             run("mkdir -p " + target_dir(directory))
             sync_dirs(local_dir=directory, remote_dir=target_dir())
 
     sync_dirs(local_dir=env.main_library, remote_dir=target_dir('libs'), exclude="settings.py")
-    sync_dirs(local_dir=os.path.join(env.main_library, "remote_settings.py"), remote_dir=target_dir(os.path.join('libs', env.main_library, 'settings.py')))
+
+    try:
+        local_settings_filename = project_config['django']['local_settings']
+    except KeyError:
+        local_settings_filename = 'settings.py'
+    sync_dirs(local_dir=os.path.join(env.main_library, "remote_settings.py"), remote_dir=target_dir(os.path.join('libs', env.main_library, local_settings_filename)))
+    if local_settings_filename != 'settings.py':
+        sync_dirs(local_dir=project_config['django']['root_settings'], remote_dir=target_dir(os.path.join('libs', env.main_library, 'settings.py')))
 
     for local_dir in ('apps', 'libs'):
         if os.path.exists(local_dir):
@@ -345,22 +361,50 @@ def deploy():
                     put(local_path, target_dir(os.path.join('libs', pkg_path)))
 
     run("find . -name '*.py[co]' -exec rm {} \;")
+    install_requirements(on_host=True)
+
     with cd(os.path.join(target_dir())):
-        run("python libs/%s/manage.py syncdb --noinput" % (env.main_library,))
+        run("%s libs/%s/manage.py syncdb --noinput" % (env.python, env.main_library,))
     sync_dirs(local_dir="root.wsgi", remote_dir=target_dir("root.wsgi"))
 
-    install_requirements()
 
     update_system()
 
     setup_domain()
 
-def install_requirements():
+def install_requirements(**kwargs):
+    on_host = kwargs.get('on_host', not kwargs.get('on_local'))
+    if on_host:
+        run_normal = run
+        run_super = sudo
+        make_dir = lambda p: target_dir(p)
+    else:
+        run_normal = local
+        run_super = local
+        make_dir = lambda p: p
+
     # Install requirements.txt
     if os.path.exists("requirements.txt"):
-        sync_dirs(local_dir="requirements.txt", remote_dir=target_dir("requirements.txt"))
-        sudo('virtualenv --no-site-packages %s' % (target_dir('ve')))
-        run('pip install -E %s -r %s' % (target_dir('ve'), target_dir('requirements.txt'),))
+        domain_group = Domain(env.domain).domain_group
+
+        if on_host:
+            sync_dirs(local_dir="requirements.txt", remote_dir=make_dir("requirements.txt"))
+        with cd(os.path.join(target_dir())):
+            if on_host:
+                run_super('if [ $(ls %s -d) ]; then virtualenv --no-site-packages %s; fi' % (make_dir('ve'), make_dir('ve')))
+                run_super('chown -R %s:%s ve' % (domain_group, domain_group,))
+                run_super('chmod -R g+w ve')
+            else:
+                if not os.path.exists(make_dir('ve')):
+                    run_super("virtualenv --no-site-packages ve")
+        if on_host:
+            run_super('chown -R %s:%s %s' % (env.user, domain_group, make_dir('ve')))
+        try:
+            run_normal('pip install -E %s -r %s' % (make_dir('ve'), make_dir('requirements.txt'),))
+        finally:
+            if on_host:
+                run_super('chown -R %s:%s %s' % (domain_group, domain_group, make_dir('ve')))
+        env.python = target_dir('ve/bin/python')
 
 def purge(domain, version=None):
     if version == 'current':
@@ -404,8 +448,8 @@ def alias(from_domain, to_domain):
         update_system(os.path.join(target, "project.yaml"))
 
 def test(verbose=False):
-    run(("cd %(domain_path)s && python libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) %
-    {'domain_path': target_dir(), 'project_library': project_config['project_library']})
+    run(("cd %(domain_path)s && %(python)s libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) %
+    {'domain_path': target_dir(), 'project_library': project_config['project_library'], 'python': env.python})
 
 # Server side commands
 

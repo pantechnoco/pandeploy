@@ -77,7 +77,7 @@ def main(argv):
             python -m djangorender -p %(gitignore_template)s -s project_name=%(project_name)s > .gitignore &&\
             git init && git add . && git commit -m 'initial commit'" % locals())
 
-        username = os.getlogin()
+        username = os.environ.get('USER')
         local("cd %(project_name)s && fab allow_deploy:%(username)s allow_alias:%(username)s deploy alias_version:0.1" % locals())
  
     return 0
