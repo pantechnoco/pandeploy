@@ -1,0 +1,9 @@
+*.py[co]
+*.swp
+.directory
+project_version.yaml
+root.wsgi
+project_extends.yaml
+{{ project_name }}/settings.py
+{{ project_name }}/manage.py
+
