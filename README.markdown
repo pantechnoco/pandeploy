@@ -76,6 +76,9 @@ everything else is passed to django.
 
 **wsgi** configures mod_wsgi, but only supports a **processes** entry, yet.
 
+**internal_ips** is a list of IPs considered internal to the site, for various
+purposes. This is used in django now, but could be used elsewhere.
+
 **django** contains all django-specific settings
 
  * **middleware** is a list of Django middleware to configure.
@@ -83,6 +86,13 @@ everything else is passed to django.
    sqlite3 right now. The rest of the fields will be added for non-sqlite3.
  * **extra_settings** allows for arbitrary values to be set in the
    final settings module.
+ * **local_settings** a path to a local settings file, that overrides some
+   settings from root_settings, which allows teams to have developer-specific
+   settings for local development environments. Pandeploy build will generate
+   this.
+ * **root_settings** is a django settings file from outside of pandeploy.
+ * **template_dirs** is a list of template paths to load from
+ * **media_root**
 
 **email**
 
