@@ -104,14 +104,11 @@ purposes. This is used in django now, but could be used elsewhere.
 
 # Server Layout
 
-NOTE: Differs from reality. This is what I'll be changing it to.
-
 **/domains/** contains all the actively hosted domains.
 
 **/domains/domainname.tld/** contains all the current versions of a domain. 
 
-**/domains/domainname.tld/version-x.y.z/** contains all the content and scripts for a version of the domain.
+**/domains/domainname.tld/X.Y.v.domain.tld/** contains all the content and scripts for a version of the domain.
 
-**/domains/domainname.tld/version-current/** is a symlink to the current version.
+**/domains/domainname.tld/public/** is a symlink to the current version.
 
-**/domains/domainname.tld/top-level/** is the actual domain. It is configured to alias to the current version.
