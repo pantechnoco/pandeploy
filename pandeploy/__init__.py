@@ -473,9 +473,9 @@ def update_system(to_path=None):
     user = env.user
     env.user = "root"
     try:
-        put(os.path.join(os.path.dirname(__file__), "panconfig.py"), os.path.join("/", "usr", "bin", "panconfig.py"))
-        put(os.path.join(os.path.dirname(__file__), "djangorender.py"), os.path.join("/", "usr", "lib", "python2.6", "dist-packages", "djangorender.py"))
-        put(os.path.join(os.path.dirname(__file__), "httpd.conf.template"), os.path.join("/", "etc", "apache2"))
+        put(os.path.join(os.path.dirname(__file__), '..', "panconfig.py"), os.path.join("/", "usr", "bin", "panconfig.py"))
+        put(os.path.join(os.path.dirname(__file__), '..', "djangorender.py"), os.path.join("/", "usr", "lib", "python2.6", "dist-packages", "djangorender.py"))
+        put(os.path.join(os.path.dirname(__file__), 'skel', "httpd.conf.template"), os.path.join("/", "etc", "apache2"))
 
         run("panconfig.py")
 

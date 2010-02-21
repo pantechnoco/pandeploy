@@ -23,13 +23,18 @@ class ComponentLoader(object):
         for component_file in os.listdir(components_dir):
             if component_file.endswith('.py'):
                 component_globals = {}
-                execfile(os.path.join(components_dir, component_file), component_globals)
+                component_path = os.path.join(components_dir, component_file)
+                execfile(component_path, component_globals)
                 try:
-                    yield component_globals['component']
+                    component_globals['component'].from_path = component_path
+                    yield component_file.split('.py')[0], component_globals['component']
                 except KeyError:
                     pass
 
     def load_all(self):
         for CL in self._find_component_libraries():
-            for C in self._components_from_library(CL):
-                yield C
+            for name, component in self._components_from_library(CL):
+                if name in self.components:
+                    print "Loaded component %s twice. %s and %s" % (name, self.components[name].from_path, component.from_path)
+                else:
+                    self.components[name] = component

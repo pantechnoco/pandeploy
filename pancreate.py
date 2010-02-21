@@ -89,8 +89,9 @@ def main(argv):
             git init && git add . && git commit -m 'initial commit'" % locals())
 
         from pandeploy.component import ComponentLoader
-        for component in ComponentLoader().load_all():
-            print component
+        CL = ComponentLoader()
+        CL.load_all()
+        for name, component in CL.components.items():
             component.populate_new_project(project)
 
         username = os.environ.get('USER')
