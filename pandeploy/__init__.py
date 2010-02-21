@@ -207,7 +207,7 @@ def _build_from_template(src, dest, **extra_settings):
     conf = copy.deepcopy(project_config)
     conf.update(extra_settings)
 
-    settings_template_path = os.path.join(os.path.dirname(__file__), src)
+    settings_template_path = os.path.join(os.path.dirname(__file__), 'skel', src)
     settings_code = djangorender.render_path(settings_template_path, **conf)
     open(dest, 'w').write(settings_code)
 
