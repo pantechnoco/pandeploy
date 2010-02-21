@@ -1,11 +1,17 @@
 #!/usr/bin/env python
+from __future__ import with_statement
 
 import sys, os
 
 from fabric.api import local
 from fabric.contrib.files import sed
+from fabric.context_managers import cd
 
 import yaml
+
+from pandeploy.component import ComponentLoader
+from pandeploy.project import Project
+from pandeploy import no_warning
 
 from optparse import OptionParser
 parser = OptionParser()
@@ -34,9 +40,6 @@ from django.core.handlers import wsgi
 application = wsgi.WSGIHandler()
 """
 
-class Project(object):
-    pass
-
 def main(argv):
     project_name = options.project_name
     if not project_name:
@@ -50,7 +53,7 @@ def main(argv):
     project.name = project_name
     project.domain = domain
     project.appname = appname
-    project.path = os.path.join('.', project_name)
+    project.path = os.path.abspath(os.path.join('.', project_name))
 
     def mkdir(dir, L):
         local(("mkdir -p %(project_name)s/" % L) + dir)
@@ -84,18 +87,23 @@ def main(argv):
         open(os.path.join(project_name, "root.wsgi"), 'w').write(root_wsgi % locals())
 
         gitignore_template = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'pandeploy', 'skel', 'default_gitignore'))
-        local("cd %(project_name)s &&\
-            python -m djangorender -p %(gitignore_template)s -s project_name=%(project_name)s > .gitignore &&\
-            git init && git add . && git commit -m 'initial commit'" % locals())
+        with cd(project_name):
+            with no_warning:
+                local('python -m djangorender -p %(gitignore_template)s -s project_name=%(project_name)s > .gitignore' % locals())
+            local('git init')
+            local('git add .')
+            local("git commit -m 'initial commit'")
 
-        from pandeploy.component import ComponentLoader
         CL = ComponentLoader()
         CL.load_all()
         for name, component in CL.components.items():
             component.populate_new_project(project)
 
         username = os.environ.get('USER')
-        local("cd %(project_name)s && fab allow_deploy:%(username)s allow_alias:%(username)s deploy alias_version:0.1" % locals())
+        with cd(project_name):
+            local("fab allow_deploy:%(username)s" % locals())
+            local("fab allow_alias:%(username)s" % locals())
+            local("fab deploy alias_version:0.1" % locals())
  
     return 0
 
