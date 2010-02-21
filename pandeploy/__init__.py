@@ -156,12 +156,17 @@ def load_and_merge(base_path, extended_path):
 
     return _dict_deep_combine(base_config, ext_config, skip=('apache_order',))
 
-project_config = load_and_merge("project_extends.yaml", "project.yaml")
+def prepare_env():
+    global project_config
+    project_config = load_and_merge("project_extends.yaml", "project.yaml")
 
-env.user = project_config['user']
-env.hosts = project_config['hosts']
-env.domain = project_config['domain']
-env.python = 'python2.6'
+    env.user = project_config['user']
+    env.hosts = project_config['hosts']
+    env.domain = project_config['domain']
+    env.python = 'python2.6'
+
+if sys.argv[0].split('/')[-1] == 'fab':
+    prepare_env()
 
 # Exposed developer commands
 
@@ -479,5 +484,10 @@ def update_system(to_path=None):
         env.user = user
 
 # Always run once with test domain first
-domain(project_config["domain"], version=project_config["version"])
+try:
+    project_config
+except NameError:
+    pass
+else:
+    domain(project_config["domain"], version=project_config["version"])
 

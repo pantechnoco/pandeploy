@@ -20,7 +20,6 @@ class ComponentLoader(object):
 
     def _components_from_library(self, path):
         components_dir = os.path.join(path, 'pandeploy', 'components')
-        print components_dir
         for component_file in os.listdir(components_dir):
             if component_file.endswith('.py'):
                 component_globals = {}
@@ -33,4 +32,4 @@ class ComponentLoader(object):
     def load_all(self):
         for CL in self._find_component_libraries():
             for C in self._components_from_library(CL):
-                print C
+                yield C
