@@ -11,6 +11,7 @@ __all__ = [
     'alias_version',
     'purge_old',
     'purge',
+    'purge_entire_domain',
     'test',
     'setup_domain',
     'allow_deploy', 'deny_deploy',
@@ -382,11 +383,11 @@ def install_requirements(**kwargs):
     if on_host:
         run_normal = run
         run_super = sudo
-        make_dir = lambda p: target_dir(p)
+        make_dir = lambda p=None: target_dir(p) if p else target_dir()
     else:
         run_normal = local
         run_super = local
-        make_dir = lambda p: p
+        make_dir = lambda p=None: p or '.'
 
     # Install requirements.txt
     if os.path.exists("requirements.txt"):
@@ -396,7 +397,7 @@ def install_requirements(**kwargs):
             sync_dirs(local_dir="requirements.txt", remote_dir=make_dir("requirements.txt"))
         with cd(os.path.join(target_dir())):
             if on_host:
-                run_super('if [ $(ls %s -d) ]; then virtualenv --no-site-packages %s; fi' % (make_dir('ve'), make_dir('ve')))
+                run_super('if [ "x$(ls %s -1 | grep "^ve$")" == "x" ]; then virtualenv --no-site-packages %s; fi' % (make_dir(), make_dir('ve')))
                 run_super('chown -R %s:%s ve' % (domain_group, domain_group,))
                 run_super('chmod -R g+w ve')
             else:
@@ -414,11 +415,14 @@ def install_requirements(**kwargs):
 def purge(domain, version=None):
     if version == 'current':
         version = project_config["version"]
-    assert version != active_version()
     run('rm -fr ' + target_dir(domain=domain, version=version))
 
 def purge_old():
     sudo('find /domains/%s -name "*.v.%s" -not -name "%s*" -prune -exec rm -fr {} \;' % (env.domain, env.domain, active_version()))
+
+def purge_entire_domain(domain, domain_repeated):
+    assert domain == domain_repeated
+    sudo('rm -fr /domains/%s' % (env.domain,))
 
 def alias_version(version):
     if version == "current":
@@ -453,8 +457,17 @@ def alias(from_domain, to_domain):
         update_system(os.path.join(target, "project.yaml"))
 
 def test(verbose=False):
-    run(("cd %(domain_path)s && %(python)s libs/%(project_library)s/manage.py test -v " + ('2' if verbose else '1')) %
-    {'domain_path': target_dir(), 'project_library': project_config['project_library'], 'python': env.python})
+    if verbose:
+        verbose = '2'
+    else:
+        verbose = '1'
+
+    run("cd %(domain_path)s && %(python)s libs/%(project_library)s/manage.py test -v %(verbose)s > /dev/null" % {
+        'domain_path': target_dir(),
+        'project_library': project_config['project_library'],
+        'python': env.python,
+        'verbose': verbose,
+    })
 
 # Server side commands
 

@@ -184,3 +184,10 @@ INSTALLED_APPS = (
 {% for extra_setting in django.extra_settings.items %}
 {{extra_setting.0}} = {{extra_setting.1}}
 {% endfor %}
+
+try:
+    from local_settings import localize_settings
+    localize_settings(globals())
+except ImportError:
+    pass
+

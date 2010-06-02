@@ -7,6 +7,9 @@ class ComponentLoader(object):
     def __init__(self):
         self.components = {}
 
+    def __iter__(self):
+        return iter(self.components.items())
+
     def _find_component_libraries(self):
         for path in sys.path:
             if not os.path.isdir(path):

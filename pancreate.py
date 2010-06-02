@@ -94,16 +94,18 @@ def main(argv):
             local('git add .')
             local("git commit -m 'initial commit'")
 
-        CL = ComponentLoader()
-        CL.load_all()
-        for name, component in CL.components.items():
-            component.populate_new_project(project)
+        #CL = ComponentLoader()
+        #CL.load_all()
+        #project.components = CL
+        project.populate_new_project()
+        
 
         username = os.environ.get('USER')
         with cd(project_name):
             local("fab allow_deploy:%(username)s" % locals())
             local("fab allow_alias:%(username)s" % locals())
-            local("fab deploy alias_version:0.1" % locals())
+            print local("fab deploy")
+            local("fab alias_version:0.1")
  
     return 0
 
