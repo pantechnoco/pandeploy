@@ -208,6 +208,7 @@ def build(skip_reqs=False):
     build_project_version_yaml()
     if not skip_reqs:
         install_requirements(on_local=True)
+    local("python %s/manage.py syncdb --noinput" % (env.main_library,))
 
 def _build_from_template(src, dest, **extra_settings):
     conf = copy.deepcopy(project_config)
@@ -363,7 +364,7 @@ def deploy():
                         remote_dir=target_dir('libs'))
                 else:
                     # Dunno why permissions are forcing me to do this
-                    run('rm %s' % (target_dir(os.path.join('libs', pkg_path)),))
+                    run('rm -f %s' % (target_dir(os.path.join('libs', pkg_path)),))
                     put(local_path, target_dir(os.path.join('libs', pkg_path)))
 
     run("find . -name '*.py[co]' -exec rm {} \;")
