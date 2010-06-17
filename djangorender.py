@@ -13,7 +13,7 @@ if 'DJANGO_SETTINGS_MODULE' not in os.environ:
     import fakesettings
 
     fakesettings.INSTALLED_APPS = (
-        '_djrend_tt',
+        'pandeploy._djrend_tt',
     )
 
 def render_str(template_str, **context):
